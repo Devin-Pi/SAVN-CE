@@ -19,3 +19,7 @@ dist/
 *.log
 *.pth
 *.pt
+# Privileged research artifacts and run observations are not source code.
+research_outputs/
+outputs/
+audit/
