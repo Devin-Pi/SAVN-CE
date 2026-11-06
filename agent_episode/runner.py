@@ -12,13 +12,18 @@ def run(output,policy='evidence',episode_id='410',steps=64,resolution=256,seed=7
     p=Path(output);rgb=[];audio=[]
     try:
         o=env.reset()
+        rgb.append(o['rgb'])
+        audio.append(o['binaural_audio'])
         while not env.done:
-            rgb.append(o['rgb']);audio.append(o['binaural_audio'])
+            previous_observation_id = o['observation_id']
             d=agent.decide(o)
             with (p/'estimates.jsonl').open('a') as f:f.write(json.dumps({'observation_id':o['observation_id'],**d['estimate']})+'\n')
             o,done=env.step(d['action'],d)
             print(o['step'],d['action'],d['estimate']['accepted_for_action'],flush=True)
-        rgb.append(o['rgb']);audio.append(o['binaural_audio'])
+            # STOP returns the current observation without advancing simulation time.
+            if o['observation_id'] != previous_observation_id:
+                rgb.append(o['rgb'])
+                audio.append(o['binaural_audio'])
         result=env.evaluate();result.update({'policy':policy,'official_association':True,'episode_file':episode_file,'is_author_official_benchmark':episode_file==DEFAULT_EPISODES,'controller':'transparent audio/depth rule baseline; not an LLM','raw_observations':len(rgb),'sample_rate':env.sr,'dt_s':env.dt})
         (env.private_output/'evaluation.json').write_text(json.dumps(result,indent=2)+'\n')
         sf.write(p/'binaural.wav',np.concatenate(audio),env.sr,subtype='FLOAT');imageio.mimwrite(p/'rgb.mp4',rgb,fps=1/env.dt,quality=7,macro_block_size=1)

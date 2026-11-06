@@ -3,7 +3,58 @@ import numpy as np
 from habitat_sim.utils.common import quat_from_coeffs,quat_rotate_vector
 
 class AudioDepthAgent:
-    def __init__(self,verify=False):self.verify=verify;self.history=[];self.turns=0
+    # A close estimate needs agreement over distinct observations before stopping.
+    STOP_RANGE_M = 1.0
+    STOP_MAX_SPREAD_M = 0.5
+    STOP_CONFIRMATIONS = 3
+    STOP_MIN_ALIGNMENT = float(np.cos(np.deg2rad(45.0)))
+
+    def __init__(self, verify=False):
+        self.verify = verify
+        self.history = []
+        self.turns = 0
+        self._stop_candidates = []
+
+    def _stop_check(self, estimate, position, front_bearing, observation_id):
+        point = estimate['world_position_estimate']
+        estimated_range = None
+        alignment = None
+        if point is not None:
+            source_xz = np.asarray([point[0], point[2]])
+            offset = source_xz - position[[0, 2]]
+            estimated_range = float(np.linalg.norm(offset))
+            if estimated_range > 1e-6:
+                alignment = float(np.dot(offset / estimated_range, front_bearing[[0, 2]]))
+
+        checks = {
+            'audio_verified': estimate['accepted_for_action'],
+            'valid_triangulation': point is not None,
+            'estimated_range_within_1m': estimated_range is not None and estimated_range <= self.STOP_RANGE_M,
+            'agrees_with_front_bearing': alignment is not None and alignment >= self.STOP_MIN_ALIGNMENT,
+        }
+        if not all(checks.values()):
+            self._stop_candidates.clear()
+        elif not self._stop_candidates or self._stop_candidates[-1][0] != observation_id:
+            self._stop_candidates.append((observation_id, source_xz))
+            self._stop_candidates = self._stop_candidates[-self.STOP_CONFIRMATIONS:]
+
+        spread = None
+        if self._stop_candidates:
+            points = np.asarray([candidate[1] for candidate in self._stop_candidates])
+            spread = float(np.max(np.linalg.norm(points[:, None] - points[None, :], axis=2)))
+        checks['consecutive_consistent_estimates'] = (
+            len(self._stop_candidates) == self.STOP_CONFIRMATIONS
+            and spread <= self.STOP_MAX_SPREAD_M
+        )
+        return {
+            'ready': all(checks.values()),
+            'checks': checks,
+            'estimated_horizontal_range_m': estimated_range,
+            'front_bearing_cosine': alignment,
+            'estimate_spread_m': spread,
+            'confirming_observation_ids': [candidate[0] for candidate in self._stop_candidates],
+        }
+
     def decide(self,o):
         a=o['binaural_audio'];rms=float(np.sqrt(np.mean(a*a)));power=np.mean(a*a,axis=0)+1e-12
         ild=float(10*np.log10(power[0]/power[1]));n=1<<int(np.ceil(np.log2(len(a)*2)))
@@ -30,7 +81,18 @@ class AudioDepthAgent:
             valid=baseline>.25 and condition<20 and residual<.75 and np.linalg.norm(point-p[[0,2]])<15
             estimate['triangulation']={'condition_number':condition if np.isfinite(condition) else None,'residual_m':residual,'baseline_m':baseline,'geometric_checks_passed':bool(valid),'evidence_ids':[x['ref']+':audio' for x in rays]}
             if valid:estimate['world_position_estimate']=[float(point[0]),None,float(point[1])]
-        if front_clear<.65 or o['collided_previous_step'] or o.get('blocked_previous_step',False):
+        if self.verify:
+            estimate['stop_check'] = self._stop_check(estimate, p, front, ref)
+        if self.verify and estimate['stop_check']['ready']:
+            action = 'stop'
+            reason = 'verified audio and consistent nearby triangulation over three observations'
+            stop_evidence = [
+                observation_id + ':' + modality
+                for observation_id in estimate['stop_check']['confirming_observation_ids']
+                for modality in ('audio', 'pose')
+            ]
+            evidence = list(dict.fromkeys(evidence + estimate['triangulation']['evidence_ids'] + stop_evidence))
+        elif front_clear<.65 or o['collided_previous_step'] or o.get('blocked_previous_step',False):
             action='turn_left' if left_clear>=right_clear else 'turn_right';reason='depth/collision blocks forward; turn toward greater clearance'
         elif accepted and abs(ild)>2.5 and self.turns<3:
             action='turn_left' if ild>0 else 'turn_right';reason='react to accepted binaural level asymmetry';self.turns+=1
