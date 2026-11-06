@@ -8,12 +8,17 @@ from habitat_sim.utils.common import quat_to_coeffs
 from savnce.datasets.savnce_dataset import SAVNCE_Dataset
 from savnce.tasks.savnce_task import merge_sim_episode_config
 from savnce.sims.savnce_simulator import SAVNCE_Simulator
+from .foa import audio_format, to_ambix
 
 ACTIONS={0:'stop',1:'move_forward',2:'turn_left',3:'turn_right'}
 DEFAULT_EPISODES='audit/official_samples/savnce_dataset/mp3d/v1/train/content/17DRP5sb8fy.json.gz'
 
 class OfficialEpisodeEnv:
-    def __init__(self,output,episode_id='410',resolution=256,max_steps=64,seed=7,episodes_path=DEFAULT_EPISODES,private_output=None):
+    def __init__(self,output,episode_id='410',resolution=256,max_steps=64,seed=7,episodes_path=DEFAULT_EPISODES,private_output=None,*,audio_mode='binaural'):
+        if audio_mode not in ('binaural', 'foa'):
+            raise ValueError("audio_mode must be 'binaural' or 'foa'")
+        self.audio_mode = audio_mode
+        self.audio_key = 'foa_audio' if audio_mode == 'foa' else 'binaural_audio'
         self.output=Path(output)
         if self.output.exists() and any(self.output.iterdir()):raise FileExistsError('Use an empty output directory')
         self.output.mkdir(parents=True,exist_ok=True);(self.output/'observations').mkdir()
@@ -35,12 +40,15 @@ class OfficialEpisodeEnv:
         self._episode=next(e for e in dataset.episodes if str(e.episode_id)==self.episode_id)
         c=cfg.SIMULATOR;c.TYPE='SAVNCE_Simulator';c.AGENT_0.SENSORS=['RGB_SENSOR','DEPTH_SENSOR']
         c.RGB_SENSOR.WIDTH=c.RGB_SENSOR.HEIGHT=self.resolution;c.DEPTH_SENSOR.WIDTH=c.DEPTH_SENSOR.HEIGHT=self.resolution
-        c.AUDIO.MIC_TYPE='binaural';c.AUDIO.THREADS=4;c.AUDIO.EVERLASTING=False;c.AUDIO.HAS_DISTRACTOR_SOUND=False;c.AUDIO.HAS_NOISE_SOUND=False
+        c.AUDIO.MIC_TYPE='ambisonics' if self.audio_mode == 'foa' else 'binaural';c.AUDIO.THREADS=4;c.AUDIO.EVERLASTING=False;c.AUDIO.HAS_DISTRACTOR_SOUND=False;c.AUDIO.HAS_NOISE_SOUND=False
         c.AUDIO.SOURCE_SOUND_DIR=str(Path('data/sounds/semantic_splits').resolve())
         assert (Path(c.AUDIO.SOURCE_SOUND_DIR)/self._episode.goals[0].sound_id).is_file()
         merge_sim_episode_config(c,self._episode);cfg.freeze();self.config=c
         self.sim=SAVNCE_Simulator(c);self.sim.seed(self.seed);self.sim.reconfigure(c);self._native=self.sim.reset()
         self.dt=c.STEP_TIME;self.sr=c.AUDIO.RIR_SAMPLING_RATE
+        if self.audio_mode == 'foa':
+            self.audio_format = audio_format(self.sr, self.dt)
+            (self.output/'audio_format.json').write_text(json.dumps(self.audio_format, indent=2)+'\n')
         self.initial_distance=self._distance()
         raw=json.loads(gzip.open(self._episode_path,'rt').read())
         original=next(e for e in raw['episodes'] if str(e['episode_id'])==self.episode_id)
@@ -55,19 +63,23 @@ class OfficialEpisodeEnv:
     def observe(self):
         if self._cached is not None:return self._cached
         state=self.sim.get_agent_state();audio=self.sim.get_current_audiogoal_observation().copy()
+        if self.audio_mode == 'foa':
+            audio = to_ambix(audio)
         rgb=self._native['rgb'][...,:3].copy();depth=self._native['depth'].copy()
         if self.config.DEPTH_SENSOR.NORMALIZE_DEPTH:
             depth=depth*(self.config.DEPTH_SENSOR.MAX_DEPTH-self.config.DEPTH_SENSOR.MIN_DEPTH)+self.config.DEPTH_SENSOR.MIN_DEPTH
         pose={'position':state.position.tolist(),'rotation_xyzw':quat_to_coeffs(state.rotation).tolist()}
         ident=f'obs_{self.index:04d}';base=self.output/'observations'/ident
-        np.savez_compressed(str(base)+'.npz',rgb=rgb,depth_m=depth,binaural_audio=audio,position=state.position,rotation_xyzw=quat_to_coeffs(state.rotation))
+        np.savez_compressed(str(base)+'.npz',rgb=rgb,depth_m=depth,position=state.position,rotation_xyzw=quat_to_coeffs(state.rotation),**{self.audio_key: audio})
         sf.write(str(base)+'.wav',audio,self.sr,subtype='FLOAT');imageio.imwrite(str(base)+'.png',rgb)
         refs={'npz':str(base)+'.npz','rgb':str(base)+'.png','audio':str(base)+'.wav'}
-        public={'observation_id':ident,'step':self.index,'timestamp_s':self.index*self.dt,'rgb':rgb,'depth_m':depth,'binaural_audio':audio,'pose':pose,'sample_rate':self.sr,'dt_s':self.dt,'collided_previous_step':self._last_collision,'blocked_previous_step':self._last_blocked,'files':refs}
-        row={k:v for k,v in public.items() if k not in ['rgb','depth_m','binaural_audio']}
-        row['shapes']={'rgb':list(rgb.shape),'depth_m':list(depth.shape),'binaural_audio':list(audio.shape)}
+        public={'observation_id':ident,'step':self.index,'timestamp_s':self.index*self.dt,'rgb':rgb,'depth_m':depth,self.audio_key:audio,'pose':pose,'sample_rate':self.sr,'dt_s':self.dt,'collided_previous_step':self._last_collision,'blocked_previous_step':self._last_blocked,'files':refs}
+        if self.audio_mode == 'foa':
+            public['audio_format'] = self.audio_format
+        row={k:v for k,v in public.items() if k not in ['rgb','depth_m',self.audio_key]}
+        row['shapes']={'rgb':list(rgb.shape),'depth_m':list(depth.shape),self.audio_key:list(audio.shape)}
         row['audio_rms']=float(np.sqrt(np.mean(audio**2)))
-        registry=[{'evidence_id':ident+':audio','modality':'binaural_audio','file':refs['audio'],'sample_rate':self.sr,'time_interval_s':[self.index*self.dt,(self.index+1)*self.dt]},
+        registry=[{'evidence_id':ident+':audio','modality':self.audio_key,'file':refs['audio'],'sample_rate':self.sr,'time_interval_s':[self.index*self.dt,(self.index+1)*self.dt]},
                   {'evidence_id':ident+':depth','modality':'metric_depth','file':refs['npz'],'array_key':'depth_m','units':'metres'},
                   {'evidence_id':ident+':rgb','modality':'RGB','file':refs['rgb']},
                   {'evidence_id':ident+':pose','modality':'robot_pose','file':refs['npz'],'array_keys':['position','rotation_xyzw']}]
@@ -95,5 +107,13 @@ class OfficialEpisodeEnv:
     def evaluate(self):
         distance=self._distance();stopped=bool(getattr(self,'_actions',[]) and self._actions[-1]['action_id']==0)
         return {'official_episode_id':self.episode_id,'initial_distance_m':self.initial_distance,'final_distance_m':distance,'stopped':stopped,'success_stop_within_1m':stopped and distance<1.0,'movement_steps':self.index,'num_actions':len(getattr(self,'_actions',[])),'termination':'stop' if stopped else 'step_budget','note':'Evaluator-only ground truth; not sent to policy.'}
+    def export_foa_wav(self):
+        windows = []
+        for path in sorted((self.output/'observations').glob('obs_*.wav')):
+            audio, _ = sf.read(path, dtype='float32', always_2d=True)
+            windows.append(audio)
+        if windows:
+            sf.write(self.output/'foa_ambix.wav', np.concatenate(windows), self.sr, subtype='FLOAT')
+
     def close(self):
         if self.sim:self.sim._sim.close();self.sim=None

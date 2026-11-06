@@ -76,6 +76,29 @@ stdin每行一条JSON；例如由可信协调器选定任务和输出目录后re
 
 可信模拟服务必然访问官方任务真值。**不要给不可信Agent授予SSH/root、整个项目/数据盘挂载或服务stderr**。inline模式消除文件路径依赖，适合把Agent放到无项目挂载的独立客户端；本阶段没有实现抵御恶意请求或root访问的安全网关。reset的任务路径、输出路径、预算应由可信协调器固定，Agent只控制observe/step/stop。`evaluation.json` 只供研究者评估，不能作为决策输入。
 
+## 可选 FOA 音频
+
+在 JSONL 的 `reset` 请求里添加 `"audio_mode":"foa"`。省略该字段时继续使用双耳。
+FOA 模式的每步 NPZ 使用 `foa_audio` 字段（16 kHz、每窗 4000 × 4），同一目录的
+WAV 保存同样的浮点样本。发送 `close` 后，服务按观测顺序把各窗拼接成
+`foa_ambix.wav`。STOP 不产生新的窗口。WAV 的声道语义见 `audio_format.json`，
+导入播放器或分析工具时选择一阶 ACN/SN3D。现有基于双耳 ITD/ILD 的策略使用默认模式。
+
+本容器的原生 RLR 输出采用固定 Habitat 世界轴，声道为
+`[W, +Habitat Y, +Habitat Z, +Habitat X]`，一阶分量相对 W 的尺度为 N3D。
+导出转换为 `[W, -c3/√3, c1/√3, -c2/√3]`（原生通道从 0 编号）。
+得到的 ACN 顺序为 W/Y/Z/X，AmbiX 的前、左、上分别对应 Habitat 世界的 −Z、−X、+Y。
+WAV 保持固定世界轴，消费端可结合当前观测的位姿转换到机器人局部坐标。
+
+标定使用合成房间、仅直达声、2 米距离、6 个正负主轴和 2 个斜方向，
+分别测试 0°、90°、180° 的监听器偏航。可用以下命令验证当前 Habitat-Sim 构建
+（需要容器中的 `trimesh`）：
+
+```bash
+docker exec -w /workspace/SAVN-CE savnce_dev \
+  python -m scripts.calibrate_foa --output /tmp/foa_calibration.json
+```
+
 ## 实际验证与复跑
 
 已在现有容器运行 `dataset_v1_1.audit`、`finalize`、`timing_probe`、`report`、`tests`。最后测试汇总见JSON。没有重跑会覆写原始v1验证文件的旧 `episode_tools.validate`。
