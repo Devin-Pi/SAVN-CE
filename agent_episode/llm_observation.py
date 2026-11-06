@@ -156,20 +156,29 @@ def transform(obs, verifier):
     encoded = obs['sensor_payload']
     if encoded['encoding'] != 'npz_base64':
         raise ValueError('Expected inline NPZ observations')
+    foa = 'foa_audio' in obs['shapes']
+    audio_key = 'foa_audio' if foa else 'binaural_audio'
+    expected = ARRAYS - {'binaural_audio'} | {audio_key}
     with np.load(io.BytesIO(base64.b64decode(encoded['data'], validate=True)), allow_pickle=False) as data:
-        if set(data.files) != ARRAYS:
+        if set(data.files) != expected:
             raise ValueError('Unexpected observation arrays')
-        rgb, depth, audio, p, q = [data[k] for k in ('rgb', 'depth_m', 'binaural_audio', 'position', 'rotation_xyzw')]
+        rgb, depth, audio, p, q = [data[k] for k in ('rgb', 'depth_m', audio_key, 'position', 'rotation_xyzw')]
     sr, dt = obs['sample_rate'], obs['dt_s']
     if (rgb.dtype != np.uint8 or rgb.ndim != 3 or rgb.shape[2] != 3
-            or depth.shape != (*rgb.shape[:2], 1) or audio.shape != (round(sr*dt), 2)
+            or depth.shape != (*rgb.shape[:2], 1) or audio.shape != (round(sr*dt), 4 if foa else 2)
             or p.shape != (3,) or q.shape != (4,)
             or not all(np.isfinite(a).all() for a in (depth, audio, p, q))):
         raise ValueError('Invalid RGB-D, audio or pose')
     quat = quat_from_coeffs(q)
     forward = quat_rotate_vector(quat, np.array([0., 0., -1.]))
     left = quat_rotate_vector(quat, np.array([-1., 0., 0.]))
-    audio_meta, angle, curve = audio_features(audio, sr)
+    if foa:
+        audio_meta = {'format': 'FOA ACN/SN3D', 'rms_w': float(np.sqrt(np.mean(audio[:, 0]**2))),
+                      'acoustic_receiver_position': obs['audio_receiver_position']}
+        angle, acoustic_png = None, None
+    else:
+        audio_meta, angle, curve = audio_features(audio, sr)
+        acoustic_png = audio_image(audio, sr, audio_meta, curve)
     ident = obs['observation_id']
     gate = verifier.update(ident, obs['step'], p, forward, left, depth, angle)
     summary = {'observation_id': ident, 'step': obs['step'], 'sim_time_s': obs['timestamp_s'],
@@ -184,7 +193,7 @@ def transform(obs, verifier):
         for name, fit in gate['fits'].items()
     }
     return {'summary': summary, 'rgb_png': png64(Image.fromarray(rgb)),
-            'audio_png': audio_image(audio, sr, audio_meta, curve), 'stop_gate': gate}
+            'audio_png': acoustic_png, 'stop_gate': gate}
 
 
 def main():

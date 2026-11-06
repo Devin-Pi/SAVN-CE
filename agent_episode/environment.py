@@ -76,6 +76,8 @@ class OfficialEpisodeEnv:
         public={'observation_id':ident,'step':self.index,'timestamp_s':self.index*self.dt,'rgb':rgb,'depth_m':depth,self.audio_key:audio,'pose':pose,'sample_rate':self.sr,'dt_s':self.dt,'collided_previous_step':self._last_collision,'blocked_previous_step':self._last_blocked,'files':refs}
         if self.audio_mode == 'foa':
             public['audio_format'] = self.audio_format
+            sensor = self.sim._sim.get_agent(0)._sensors[self.sim._audio_goal_sensor_uuid]
+            public['audio_receiver_position'] = np.asarray(sensor.node.absolute_translation).tolist()
         row={k:v for k,v in public.items() if k not in ['rgb','depth_m',self.audio_key]}
         row['shapes']={'rgb':list(rgb.shape),'depth_m':list(depth.shape),self.audio_key:list(audio.shape)}
         row['audio_rms']=float(np.sqrt(np.mean(audio**2)))
