@@ -7,7 +7,10 @@ class AudioDepthAgent:
     STOP_RANGE_M = 1.0
     STOP_MAX_SPREAD_M = 0.5
     STOP_CONFIRMATIONS = 3
-    STOP_MIN_ALIGNMENT = float(np.cos(np.deg2rad(45.0)))
+    STOP_MAX_BEARING_ERROR_DEG = 30.0
+    STOP_MIN_SUPPORT = 4
+    STOP_MIN_BASELINE_M = 0.25
+    STOP_MIN_PARALLAX_DEG = 10.0
 
     def __init__(self, verify=False):
         self.verify = verify
@@ -15,27 +18,90 @@ class AudioDepthAgent:
         self.turns = 0
         self._stop_candidates = []
 
-    def _stop_check(self, estimate, position, front_bearing, observation_id):
-        point = estimate['world_position_estimate']
-        estimated_range = None
-        alignment = None
-        if point is not None:
-            source_xz = np.asarray([point[0], point[2]])
-            offset = source_xz - position[[0, 2]]
-            estimated_range = float(np.linalg.norm(offset))
-            if estimated_range > 1e-6:
-                alignment = float(np.dot(offset / estimated_range, front_bearing[[0, 2]]))
+    def _fit_stop_hypothesis(self, position, bearing, views):
+        if len(views) < self.STOP_MIN_SUPPORT:
+            return {'valid': False, 'reason': 'too few distinct audio observations'}
 
+        # Fit range along one current ray. Each past view may independently
+        # support the source with its front or back ray.
+        ranges = np.arange(1, 151) / 10.0
+        origin = position[[0, 2]]
+        ray = bearing[[0, 2]]
+        ray_norm = np.linalg.norm(ray)
+        if ray_norm < 1e-6:
+            return {'valid': False, 'reason': 'no horizontal bearing'}
+        candidates = origin + ranges[:, None] * (ray / ray_norm)
+        positions = np.array([view['p'][[0, 2]] for view in views])
+        rays = np.array([
+            [view['direction'][[0, 2]], view['back_direction'][[0, 2]]]
+            for view in views
+        ])
+        rays /= np.maximum(np.linalg.norm(rays, axis=-1, keepdims=True), 1e-6)
+        offsets = candidates[:, None, :] - positions
+        directions = offsets / np.maximum(np.linalg.norm(offsets, axis=-1, keepdims=True), 1e-6)
+        alignment = np.einsum('rvi,vhi->rvh', directions, rays).max(axis=2)
+        angles = np.degrees(np.arccos(np.clip(alignment, -1.0, 1.0)))
+        errors = np.sqrt(np.mean(np.minimum(angles, 45.0) ** 2, axis=1))
+        best = int(np.argmin(errors))
+        inliers = angles[best] <= self.STOP_MAX_BEARING_ERROR_DEG
+        support_count = int(inliers.sum())
+        baseline = 0.0
+        parallax = 0.0
+        if support_count:
+            support_positions = positions[inliers]
+            baseline = float(np.max(np.linalg.norm(support_positions[:, None] - support_positions, axis=-1)))
+            support_directions = directions[best, inliers]
+            # Acute angle between sight lines, excluding parallel/opposite
+            # views that do not constrain range.
+            cross = np.outer(support_directions[:, 0], support_directions[:, 1])
+            parallax = float(np.degrees(np.arcsin(np.clip(np.max(np.abs(cross - cross.T)), 0.0, 1.0))))
+        checks = {
+            'enough_inliers': support_count >= self.STOP_MIN_SUPPORT and support_count / len(views) >= 0.6,
+            'moving_baseline': baseline > self.STOP_MIN_BASELINE_M,
+            'parallax': parallax >= self.STOP_MIN_PARALLAX_DEG,
+        }
+        return {
+            'valid': all(checks.values()),
+            'checks': checks,
+            'estimated_horizontal_range_m': float(ranges[best]),
+            'source_xz': candidates[best].tolist(),
+            'angular_fit_error_deg': float(errors[best]),
+            'support_count': support_count,
+            'observation_count': len(views),
+            'baseline_m': baseline,
+            'parallax_deg': parallax,
+            'supporting_observation_ids': [view['ref'] for view, keep in zip(views, inliers) if keep],
+        }
+
+    def _stop_check(self, estimate, position, front_bearing, back_bearing, observation_id):
+        views = list({
+            view['ref']: view for view in self.history[-24:] if view['usable_for_stop']
+        }.values())
+        hypotheses = {
+            name: self._fit_stop_hypothesis(position, bearing, views)
+            for name, bearing in [('front', front_bearing), ('back', back_bearing)]
+        }
+        supported = [(name, fit) for name, fit in hypotheses.items() if fit['valid']]
+        selected_name, selected = min(
+            supported, key=lambda item: item[1]['angular_fit_error_deg'], default=(None, None)
+        )
         checks = {
             'audio_verified': estimate['accepted_for_action'],
-            'valid_triangulation': point is not None,
-            'estimated_range_within_1m': estimated_range is not None and estimated_range <= self.STOP_RANGE_M,
-            'agrees_with_front_bearing': alignment is not None and alignment >= self.STOP_MIN_ALIGNMENT,
+            'supported_hypothesis': selected is not None,
+            'estimated_range_within_1m': (
+                selected is not None and selected['estimated_horizontal_range_m'] <= self.STOP_RANGE_M
+            ),
+            'no_supported_far_hypothesis': all(
+                fit['estimated_horizontal_range_m'] <= self.STOP_RANGE_M for _, fit in supported
+            ),
         }
         if not all(checks.values()):
             self._stop_candidates.clear()
         elif not self._stop_candidates or self._stop_candidates[-1][0] != observation_id:
-            self._stop_candidates.append((observation_id, source_xz))
+            support = {
+                ref for _, fit in supported for ref in fit['supporting_observation_ids']
+            }
+            self._stop_candidates.append((observation_id, selected['source_xz'], sorted(support)))
             self._stop_candidates = self._stop_candidates[-self.STOP_CONFIRMATIONS:]
 
         spread = None
@@ -49,10 +115,14 @@ class AudioDepthAgent:
         return {
             'ready': all(checks.values()),
             'checks': checks,
-            'estimated_horizontal_range_m': estimated_range,
-            'front_bearing_cosine': alignment,
+            'hypotheses': hypotheses,
+            'selected_hypothesis': selected_name,
+            'estimated_horizontal_range_m': selected['estimated_horizontal_range_m'] if selected else None,
             'estimate_spread_m': spread,
             'confirming_observation_ids': [candidate[0] for candidate in self._stop_candidates],
+            'supporting_observation_ids': sorted({
+                ref for candidate in self._stop_candidates for ref in candidate[2]
+            }),
         }
 
     def decide(self,o):
@@ -69,7 +139,11 @@ class AudioDepthAgent:
         front=np.cos(angle)*forward+np.sin(angle)*left;back=-np.cos(angle)*forward+np.sin(angle)*left
         ref=o['observation_id'];evidence=[ref+':audio',ref+':depth',ref+':pose']
         depth=o['depth_m'][...,0];h,w=depth.shape;front_clear=float(np.median(depth[h//3:2*h//3,2*w//5:3*w//5]));left_clear=float(np.median(depth[h//3:2*h//3,:w//3]));right_clear=float(np.median(depth[h//3:2*h//3,2*w//3:]))
-        self.history.append({'audible':audible,'lag':lag,'ref':ref,'p':p,'direction':front})
+        self.history.append({
+            'audible': audible, 'lag': lag, 'ref': ref, 'p': p, 'direction': front,
+            'back_direction': back,
+            'usable_for_stop': audible and clipped < 0.01 and peak > 2,
+        })
         stable=len(self.history)>=3 and sum(x['audible'] for x in self.history[-3:])==3 and np.std([x['lag'] for x in self.history[-3:]])<=2
         checks={'audio_present':audible,'not_clipped':clipped<.01,'gcc_peak_ratio_gt_2':peak>2,'three_observations_stable_lag':bool(stable)}
         accepted=audible if not self.verify else all(checks.values())
@@ -82,16 +156,16 @@ class AudioDepthAgent:
             estimate['triangulation']={'condition_number':condition if np.isfinite(condition) else None,'residual_m':residual,'baseline_m':baseline,'geometric_checks_passed':bool(valid),'evidence_ids':[x['ref']+':audio' for x in rays]}
             if valid:estimate['world_position_estimate']=[float(point[0]),None,float(point[1])]
         if self.verify:
-            estimate['stop_check'] = self._stop_check(estimate, p, front, ref)
+            estimate['stop_check'] = self._stop_check(estimate, p, front, back, ref)
         if self.verify and estimate['stop_check']['ready']:
             action = 'stop'
-            reason = 'verified audio and consistent nearby triangulation over three observations'
+            reason = 'verified nearby source after testing both front and back bearings over three observations'
             stop_evidence = [
                 observation_id + ':' + modality
-                for observation_id in estimate['stop_check']['confirming_observation_ids']
+                for observation_id in estimate['stop_check']['supporting_observation_ids']
                 for modality in ('audio', 'pose')
             ]
-            evidence = list(dict.fromkeys(evidence + estimate['triangulation']['evidence_ids'] + stop_evidence))
+            evidence = list(dict.fromkeys(evidence + stop_evidence))
         elif front_clear<.65 or o['collided_previous_step'] or o.get('blocked_previous_step',False):
             action='turn_left' if left_clear>=right_clear else 'turn_right';reason='depth/collision blocks forward; turn toward greater clearance'
         elif accepted and abs(ild)>2.5 and self.turns<3:
