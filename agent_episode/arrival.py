@@ -1,4 +1,4 @@
-"""Short-lived arrival evidence built from an observed and verified acoustic sweep."""
+"""Short-lived arrival evidence built from a supported acoustic estimate."""
 import numpy as np
 
 
@@ -7,12 +7,13 @@ class ArrivalEvidence:
     MAX_RANGE_M = 0.9
     DEPTH_TOLERANCE_M = 0.2
 
-    def __init__(self, step, position, bearing, range_interval, evidence_ids):
+    def __init__(self, step, position, bearing, range_interval, evidence_ids, source='yaw_probe'):
         ray = bearing[[0, 2]]
         ray = ray / np.linalg.norm(ray)
         self.endpoints = position[[0, 2]] + np.asarray(range_interval)[:, None] * ray
         self.step = step
         self.evidence_ids = evidence_ids
+        self.source = source
 
     @staticmethod
     def _depth_support(offset, forward, left, depth_m):
@@ -38,8 +39,9 @@ class ArrivalEvidence:
         offsets = self.endpoints - position[[0, 2]]
         upper_range = float(np.max(np.linalg.norm(offsets, axis=1)))
         clearances = [self._depth_support(offset, forward, left, depth_m) for offset in offsets]
+        freshness_check = 'fresh_verified_sweep' if self.source == 'yaw_probe' else 'fresh_passive_estimate'
         checks = {
-            'fresh_verified_sweep': 0 <= step - self.step <= self.MAX_AGE_STEPS,
+            freshness_check: 0 <= step - self.step <= self.MAX_AGE_STEPS,
             'entire_range_interval_near': upper_range <= self.MAX_RANGE_M,
             'visible_depth_does_not_block_interval': all(
                 clearance is not None and clearance >= -self.DEPTH_TOLERANCE_M
@@ -48,6 +50,7 @@ class ArrivalEvidence:
         }
         return {
             'ready': all(checks.values()),
+            'source': self.source,
             'checks': checks,
             'age_steps': step - self.step,
             'estimated_upper_horizontal_range_m': upper_range,

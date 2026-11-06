@@ -17,8 +17,9 @@ class AudioDepthAgent:
     STOP_RANGE_FIT_MARGIN_DEG = 3.0
     STOP_REPROBE_BASELINE_M = 0.5
 
-    def __init__(self, verify=False):
+    def __init__(self, verify=False, *, stop_probe=True):
         self.verify = verify
+        self.use_stop_probe = stop_probe
         self.history = []
         self.turns = 0
         self._stop_candidates = []
@@ -209,20 +210,33 @@ class AudioDepthAgent:
         probe_action = None
         if self.verify:
             estimate['stop_check'] = self._stop_check(estimate, p, front, back, ref)
-            fractional_lag = fractional_peak_lag(small, peak_index, lag_limit)
-            probe_action = self._probe_action(
-                o, estimate, p, forward, left, front, back, fractional_lag,
-                self.history[-1]['usable_for_stop'],
-            )
+            if self.use_stop_probe:
+                fractional_lag = fractional_peak_lag(small, peak_index, lag_limit)
+                probe_action = self._probe_action(
+                    o, estimate, p, forward, left, front, back, fractional_lag,
+                    self.history[-1]['usable_for_stop'],
+                )
+            elif estimate['stop_check']['ready']:
+                stop_check = estimate['stop_check']
+                side = stop_check['selected_hypothesis']
+                self._arrival = ArrivalEvidence(
+                    o['step'], p, front if side == 'front' else back,
+                    stop_check['hypotheses'][side]['plausible_range_m'],
+                    stop_check['supporting_observation_ids'], source='passive',
+                )
         arrival = None
         if self.verify and self._arrival is not None:
             arrival = self._arrival.check(o['step'], p, forward, left, o['depth_m'])
             estimate['arrival_check'] = arrival
-            if not arrival['checks']['fresh_verified_sweep']:
+            if arrival['age_steps'] > ArrivalEvidence.MAX_AGE_STEPS:
                 self._arrival = None
         if arrival is not None and arrival['ready'] and probe_action is None:
             action = 'stop'
-            reason = 'verified acoustic interval is nearby and current depth supports access'
+            reason = (
+                'verified acoustic interval is nearby and current depth supports access'
+                if self.use_stop_probe
+                else 'passive acoustic interval is nearby and current depth supports access'
+            )
             arrival_evidence = [
                 observation_id + ':' + modality
                 for observation_id in arrival['supporting_observation_ids']
