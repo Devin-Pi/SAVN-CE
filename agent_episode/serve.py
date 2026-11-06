@@ -2,6 +2,7 @@
 import sys,json,contextlib,traceback,os,base64
 from pathlib import Path
 INLINE_OBSERVATIONS='--inline-observations' in sys.argv
+FINALIZE_ROLLOUT='--finalize-rollout' in sys.argv
 PROTOCOL_OUT=os.fdopen(os.dup(1),'w',buffering=1)
 os.dup2(2,1)
 sys.stdout=sys.stderr
@@ -19,6 +20,7 @@ def public(o):
 
 def main():
     env=None
+    distances=[]
     for line in sys.stdin:
         try:
             req=json.loads(line)
@@ -27,13 +29,18 @@ def main():
                 if cmd=='reset':
                     if env:env.close()
                     env=OfficialEpisodeEnv(req['output'],req.get('episode_id','410'),req.get('resolution',256),req.get('max_steps',64),req.get('seed',7),episodes_path=req.get('episode_file',DEFAULT_EPISODES),audio_mode=req.get('audio_mode','binaural'));response={'observation':public(env.reset()),'actions':['move_forward','turn_left','turn_right','stop']}
+                    if FINALIZE_ROLLOUT:distances=[env.initial_distance]
                 elif cmd=='observe':response={'observation':public(env.observe())}
                 elif cmd in ('step','stop'):
                     o,done=env.step('stop' if cmd=='stop' else req['action'],req.get('decision'));response={'observation':public(o),'done':done}
+                    if FINALIZE_ROLLOUT and env.index==len(distances):distances.append(env._distance())
                 elif cmd=='close':
                     try:
                         if env.audio_mode == 'foa':
                             env.export_foa_wav()
+                        if FINALIZE_ROLLOUT and distances:
+                            from .rollout_export import export_rollout
+                            export_rollout(env, distances)
                     finally:
                         env.close()
                     response={'closed':True}
