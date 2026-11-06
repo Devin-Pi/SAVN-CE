@@ -2,6 +2,7 @@
 import numpy as np
 from habitat_sim.utils.common import quat_from_coeffs,quat_rotate_vector
 
+from .arrival import ArrivalEvidence
 from .stop_probe import StopProbe, fractional_peak_lag
 
 class AudioDepthAgent:
@@ -13,6 +14,8 @@ class AudioDepthAgent:
     STOP_MIN_SUPPORT = 4
     STOP_MIN_BASELINE_M = 0.25
     STOP_MIN_PARALLAX_DEG = 10.0
+    STOP_RANGE_FIT_MARGIN_DEG = 3.0
+    STOP_REPROBE_BASELINE_M = 0.5
 
     def __init__(self, verify=False):
         self.verify = verify
@@ -21,6 +24,8 @@ class AudioDepthAgent:
         self._stop_candidates = []
         self._stop_probe = None
         self._next_probe_step = 0
+        self._last_probe_position = None
+        self._arrival = None
 
     def _fit_stop_hypothesis(self, position, bearing, views):
         if len(views) < self.STOP_MIN_SUPPORT:
@@ -47,6 +52,8 @@ class AudioDepthAgent:
         angles = np.degrees(np.arccos(np.clip(alignment, -1.0, 1.0)))
         errors = np.sqrt(np.mean(np.minimum(angles, 45.0) ** 2, axis=1))
         best = int(np.argmin(errors))
+        # Competing ranges remain plausible even when their parallax is weak.
+        plausible = ranges[errors <= errors[best] + self.STOP_RANGE_FIT_MARGIN_DEG]
         inliers = angles[best] <= self.STOP_MAX_BEARING_ERROR_DEG
         support_count = int(inliers.sum())
         baseline = 0.0
@@ -69,6 +76,8 @@ class AudioDepthAgent:
             'checks': checks,
             'estimated_horizontal_range_m': float(ranges[best]),
             'source_xz': candidates[best].tolist(),
+            'plausible_range_m': [float(plausible[0]), float(plausible[-1])],
+            'best_far_fit_error_deg': float(np.min(errors[ranges > self.STOP_RANGE_M])),
             'angular_fit_error_deg': float(errors[best]),
             'support_count': support_count,
             'observation_count': len(views),
@@ -95,8 +104,10 @@ class AudioDepthAgent:
             'estimated_range_within_1m': (
                 selected is not None and selected['estimated_horizontal_range_m'] <= self.STOP_RANGE_M
             ),
-            'no_supported_far_hypothesis': all(
-                fit['estimated_horizontal_range_m'] <= self.STOP_RANGE_M for _, fit in supported
+            'far_alternatives_rejected': selected is not None and all(
+                'best_far_fit_error_deg' in fit
+                and fit['best_far_fit_error_deg'] > selected['angular_fit_error_deg'] + self.STOP_RANGE_FIT_MARGIN_DEG
+                for fit in hypotheses.values()
             ),
         }
         if not all(checks.values()):
@@ -133,14 +144,30 @@ class AudioDepthAgent:
         stop_check = estimate['stop_check']
         ref = observation['observation_id']
         if self._stop_probe is None:
-            if not stop_check['ready'] or observation['step'] < self._next_probe_step:
+            enough_new_motion = (
+                self._last_probe_position is None
+                or np.linalg.norm(position - self._last_probe_position) >= self.STOP_REPROBE_BASELINE_M
+            )
+            stop_check['enough_new_motion_for_probe'] = bool(enough_new_motion)
+            if not stop_check['ready'] or observation['step'] < self._next_probe_step or not enough_new_motion:
                 return None
+            self._last_probe_position = position.copy()
             self._stop_probe = StopProbe(
                 ref, position, forward, left, {'front': front, 'back': back},
                 stop_check, observation['sample_rate'], self.STOP_RANGE_M,
             )
         action, log = self._stop_probe.observe(ref, position, forward, left, lag, usable)
         estimate['stop_probe'] = log
+        if action == 'stop':
+            side = log['selected_hypothesis']
+            self._arrival = ArrivalEvidence(
+                observation['step'], self._stop_probe.position, self._stop_probe.bearings[side],
+                self._stop_probe.passive_hypotheses[side]['plausible_range_m'],
+                log['supporting_observation_ids'],
+            )
+            action = None
+            log['phase'] = 'direction_confirmed'
+            log['reason'] = 'verified direction and range saved for the arrival check'
         if log['phase'] != 'probing':
             self._stop_probe = None
             self._stop_candidates.clear()
@@ -187,7 +214,22 @@ class AudioDepthAgent:
                 o, estimate, p, forward, left, front, back, fractional_lag,
                 self.history[-1]['usable_for_stop'],
             )
-        if probe_action is not None:
+        arrival = None
+        if self.verify and self._arrival is not None:
+            arrival = self._arrival.check(o['step'], p, forward, left, o['depth_m'])
+            estimate['arrival_check'] = arrival
+            if not arrival['checks']['fresh_verified_sweep']:
+                self._arrival = None
+        if arrival is not None and arrival['ready'] and probe_action is None:
+            action = 'stop'
+            reason = 'verified acoustic interval is nearby and current depth supports access'
+            arrival_evidence = [
+                observation_id + ':' + modality
+                for observation_id in arrival['supporting_observation_ids']
+                for modality in ('audio', 'pose')
+            ]
+            evidence = list(dict.fromkeys(evidence + arrival_evidence))
+        elif probe_action is not None:
             action = probe_action
             probe = estimate['stop_probe']
             reason = probe.get('reason', 'turn in place to measure ITD changes before stopping')

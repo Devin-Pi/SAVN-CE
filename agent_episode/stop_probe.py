@@ -66,7 +66,9 @@ class StopProbe:
         yaws = [sample['yaw_from_start_deg'] for sample in valid]
         if (
             len(valid) < 5 or min(yaws) > -25 or max(yaws) < 25
-            or self.samples[0]['itd_samples'] is None or self.samples[-1]['itd_samples'] is None
+            # The sound may end while returning to the initial heading.
+            # Use the already observed sweep when both extrema were audible.
+            or self.samples[0]['itd_samples'] is None
             or abs(self.samples[-1]['yaw_from_start_deg']) > 5
         ):
             return None, {**log, 'phase': 'rejected', 'reason': 'missing usable audio or incomplete yaw sweep'}
