@@ -6,14 +6,17 @@ class ArrivalEvidence:
     MAX_AGE_STEPS = 8
     MAX_RANGE_M = 0.9
     DEPTH_TOLERANCE_M = 0.2
+    SURFACE_TOLERANCE_M = 0.25
 
-    def __init__(self, step, position, bearing, range_interval, evidence_ids, source='yaw_probe'):
+    def __init__(self, step, position, bearing, range_interval, evidence_ids, source='yaw_probe',
+                 depth_observation_id=None):
         ray = bearing[[0, 2]]
         ray = ray / np.linalg.norm(ray)
         self.endpoints = position[[0, 2]] + np.asarray(range_interval)[:, None] * ray
         self.step = step
         self.evidence_ids = evidence_ids
         self.source = source
+        self.depth_observation_id = depth_observation_id
 
     @staticmethod
     def _depth_support(offset, forward, left, depth_m):
@@ -48,8 +51,16 @@ class ArrivalEvidence:
                 for clearance in clearances
             ),
         }
+        if self.source == 'passive':
+            # A clear ray can cross empty space. The observed surface must
+            # also be close to the end of the proposed acoustic interval.
+            checks['surface_corroborates_passive_range'] = (
+                checks['visible_depth_does_not_block_interval']
+                and min(clearances) <= self.SURFACE_TOLERANCE_M
+            )
         return {
             'ready': all(checks.values()),
+            'depth_observation_id': self.depth_observation_id,
             'source': self.source,
             'checks': checks,
             'age_steps': step - self.step,

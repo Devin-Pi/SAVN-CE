@@ -8,6 +8,8 @@ from .stop_probe import StopProbe, fractional_peak_lag
 class AudioDepthAgent:
     # A close estimate needs agreement over distinct observations before stopping.
     STOP_RANGE_M = 1.0
+    PASSIVE_TRACK_RANGE_M = 1.5
+    PASSIVE_MIN_VIEW_SPACING_M = 0.1
     STOP_MAX_SPREAD_M = 0.5
     STOP_CONFIRMATIONS = 3
     STOP_MAX_BEARING_ERROR_DEG = 30.0
@@ -20,6 +22,7 @@ class AudioDepthAgent:
     def __init__(self, verify=False, *, stop_probe=True):
         self.verify = verify
         self.use_stop_probe = stop_probe
+        self._range_limit_m = self.STOP_RANGE_M if stop_probe else self.PASSIVE_TRACK_RANGE_M
         self.history = []
         self.turns = 0
         self._stop_candidates = []
@@ -78,7 +81,7 @@ class AudioDepthAgent:
             'estimated_horizontal_range_m': float(ranges[best]),
             'source_xz': candidates[best].tolist(),
             'plausible_range_m': [float(plausible[0]), float(plausible[-1])],
-            'best_far_fit_error_deg': float(np.min(errors[ranges > self.STOP_RANGE_M])),
+            'best_far_fit_error_deg': float(np.min(errors[ranges > self._range_limit_m])),
             'angular_fit_error_deg': float(errors[best]),
             'support_count': support_count,
             'observation_count': len(views),
@@ -91,6 +94,13 @@ class AudioDepthAgent:
         views = list({
             view['ref']: view for view in self.history[-24:] if view['usable_for_stop']
         }.values())
+        if not self.use_stop_probe:
+            separated = []
+            for view in reversed(views):
+                if all(np.linalg.norm(view['p'] - prior['p']) >= self.PASSIVE_MIN_VIEW_SPACING_M
+                       for prior in separated):
+                    separated.append(view)
+            views = separated
         hypotheses = {
             name: self._fit_stop_hypothesis(position, bearing, views)
             for name, bearing in [('front', front_bearing), ('back', back_bearing)]
@@ -102,8 +112,8 @@ class AudioDepthAgent:
         checks = {
             'audio_verified': estimate['accepted_for_action'],
             'supported_hypothesis': selected is not None,
-            'estimated_range_within_1m': (
-                selected is not None and selected['estimated_horizontal_range_m'] <= self.STOP_RANGE_M
+            ('estimated_range_within_1m' if self.use_stop_probe else 'estimated_range_within_tracking_limit'): (
+                selected is not None and selected['estimated_horizontal_range_m'] <= self._range_limit_m
             ),
             'far_alternatives_rejected': selected is not None and all(
                 'best_far_fit_error_deg' in fit
@@ -131,6 +141,7 @@ class AudioDepthAgent:
         return {
             'ready': all(checks.values()),
             'checks': checks,
+            'range_limit_m': self._range_limit_m,
             'hypotheses': hypotheses,
             'selected_hypothesis': selected_name,
             'estimated_horizontal_range_m': selected['estimated_horizontal_range_m'] if selected else None,
@@ -182,10 +193,12 @@ class AudioDepthAgent:
         cc=np.fft.irfft(spectrum,n);lag_limit=10;small=np.concatenate([cc[-lag_limit:],cc[:lag_limit+1]])
         peak_index = int(np.argmax(np.abs(small)))
         lag = peak_index - lag_limit
+        fractional_lag = fractional_peak_lag(small, peak_index, lag_limit)
+        bearing_lag = fractional_lag if self.verify and not self.use_stop_probe else lag
         peak=float(np.max(np.abs(small))/(np.mean(np.abs(small))+1e-12))
         audible=rms>1e-5;clipped=float(np.mean(np.abs(a)>=.999))
         # 18 cm nominal ear spacing; front/back ambiguity is deliberately retained.
-        angle=float(np.arcsin(np.clip((lag/o['sample_rate'])*343/.18,-1,1)))
+        angle=float(np.arcsin(np.clip((bearing_lag/o['sample_rate'])*343/.18,-1,1)))
         q=quat_from_coeffs(np.array(o['pose']['rotation_xyzw']));p=np.array(o['pose']['position'])
         forward=quat_rotate_vector(q,np.array([0.,0.,-1.]));left=quat_rotate_vector(q,np.array([-1.,0.,0.]))
         front=np.cos(angle)*forward+np.sin(angle)*left;back=-np.cos(angle)*forward+np.sin(angle)*left
@@ -200,6 +213,7 @@ class AudioDepthAgent:
         checks={'audio_present':audible,'not_clipped':clipped<.01,'gcc_peak_ratio_gt_2':peak>2,'three_observations_stable_lag':bool(stable)}
         accepted=audible if not self.verify else all(checks.values())
         estimate={'world_position_estimate':None,'front_candidate_xyz':(p+2*front).tolist() if audible else None,'back_candidate_xyz':(p+2*back).tolist() if audible else None,'range_assumption_m':2.0,'range_measured':False,'method':'GCC-PHAT bearing with nominal 18cm ear spacing; two 2m hypotheses','front_back_ambiguous':True,'bearing_left_degrees':float(np.degrees(angle)) if audible else None,'gcc_lag_samples':lag if audible else None,'ild_db':ild if audible else None,'uncertainty':'uncalibrated HRTF/reverberation and unknown range','evidence_ids':evidence,'accepted_for_action':bool(accepted),'verification_checks':checks}
+        estimate['gcc_fractional_lag_samples'] = fractional_lag if audible else None
         rays=[x for x in self.history[-24:] if x['audible']]
         if len(rays)>=4:
             ps=np.array([x['p'][[0,2]] for x in rays]);ds=np.array([x['direction'][[0,2]] for x in rays]);normals=np.stack([-ds[:,1],ds[:,0]],axis=1)
@@ -211,7 +225,6 @@ class AudioDepthAgent:
         if self.verify:
             estimate['stop_check'] = self._stop_check(estimate, p, front, back, ref)
             if self.use_stop_probe:
-                fractional_lag = fractional_peak_lag(small, peak_index, lag_limit)
                 probe_action = self._probe_action(
                     o, estimate, p, forward, left, front, back, fractional_lag,
                     self.history[-1]['usable_for_stop'],
@@ -219,11 +232,16 @@ class AudioDepthAgent:
             elif estimate['stop_check']['ready']:
                 stop_check = estimate['stop_check']
                 side = stop_check['selected_hypothesis']
-                self._arrival = ArrivalEvidence(
+                candidate = ArrivalEvidence(
                     o['step'], p, front if side == 'front' else back,
                     stop_check['hypotheses'][side]['plausible_range_m'],
                     stop_check['supporting_observation_ids'], source='passive',
+                    depth_observation_id=ref,
                 )
+                acquisition = candidate.check(o['step'], p, forward, left, o['depth_m'])
+                estimate['passive_acquisition_check'] = acquisition
+                if acquisition['checks']['surface_corroborates_passive_range']:
+                    self._arrival = candidate
         arrival = None
         if self.verify and self._arrival is not None:
             arrival = self._arrival.check(o['step'], p, forward, left, o['depth_m'])
@@ -242,6 +260,8 @@ class AudioDepthAgent:
                 for observation_id in arrival['supporting_observation_ids']
                 for modality in ('audio', 'pose')
             ]
+            if arrival['depth_observation_id'] is not None:
+                arrival_evidence.append(arrival['depth_observation_id'] + ':depth')
             evidence = list(dict.fromkeys(evidence + arrival_evidence))
         elif probe_action is not None:
             action = probe_action
