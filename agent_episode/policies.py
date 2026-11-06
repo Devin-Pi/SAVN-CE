@@ -2,6 +2,8 @@
 import numpy as np
 from habitat_sim.utils.common import quat_from_coeffs,quat_rotate_vector
 
+from .stop_probe import StopProbe, fractional_peak_lag
+
 class AudioDepthAgent:
     # A close estimate needs agreement over distinct observations before stopping.
     STOP_RANGE_M = 1.0
@@ -17,6 +19,8 @@ class AudioDepthAgent:
         self.history = []
         self.turns = 0
         self._stop_candidates = []
+        self._stop_probe = None
+        self._next_probe_step = 0
 
     def _fit_stop_hypothesis(self, position, bearing, views):
         if len(views) < self.STOP_MIN_SUPPORT:
@@ -125,12 +129,32 @@ class AudioDepthAgent:
             }),
         }
 
+    def _probe_action(self, observation, estimate, position, forward, left, front, back, lag, usable):
+        stop_check = estimate['stop_check']
+        ref = observation['observation_id']
+        if self._stop_probe is None:
+            if not stop_check['ready'] or observation['step'] < self._next_probe_step:
+                return None
+            self._stop_probe = StopProbe(
+                ref, position, forward, left, {'front': front, 'back': back},
+                stop_check, observation['sample_rate'], self.STOP_RANGE_M,
+            )
+        action, log = self._stop_probe.observe(ref, position, forward, left, lag, usable)
+        estimate['stop_probe'] = log
+        if log['phase'] != 'probing':
+            self._stop_probe = None
+            self._stop_candidates.clear()
+            self._next_probe_step = observation['step'] + 4
+        return action
+
     def decide(self,o):
         a=o['binaural_audio'];rms=float(np.sqrt(np.mean(a*a)));power=np.mean(a*a,axis=0)+1e-12
         ild=float(10*np.log10(power[0]/power[1]));n=1<<int(np.ceil(np.log2(len(a)*2)))
         spectrum=np.fft.rfft(a[:,0],n)*np.conj(np.fft.rfft(a[:,1],n));spectrum/=np.abs(spectrum)+1e-12
         cc=np.fft.irfft(spectrum,n);lag_limit=10;small=np.concatenate([cc[-lag_limit:],cc[:lag_limit+1]])
-        lag=int(np.argmax(np.abs(small))-lag_limit);peak=float(np.max(np.abs(small))/(np.mean(np.abs(small))+1e-12))
+        peak_index = int(np.argmax(np.abs(small)))
+        lag = peak_index - lag_limit
+        peak=float(np.max(np.abs(small))/(np.mean(np.abs(small))+1e-12))
         audible=rms>1e-5;clipped=float(np.mean(np.abs(a)>=.999))
         # 18 cm nominal ear spacing; front/back ambiguity is deliberately retained.
         angle=float(np.arcsin(np.clip((lag/o['sample_rate'])*343/.18,-1,1)))
@@ -155,17 +179,24 @@ class AudioDepthAgent:
             valid=baseline>.25 and condition<20 and residual<.75 and np.linalg.norm(point-p[[0,2]])<15
             estimate['triangulation']={'condition_number':condition if np.isfinite(condition) else None,'residual_m':residual,'baseline_m':baseline,'geometric_checks_passed':bool(valid),'evidence_ids':[x['ref']+':audio' for x in rays]}
             if valid:estimate['world_position_estimate']=[float(point[0]),None,float(point[1])]
+        probe_action = None
         if self.verify:
             estimate['stop_check'] = self._stop_check(estimate, p, front, back, ref)
-        if self.verify and estimate['stop_check']['ready']:
-            action = 'stop'
-            reason = 'verified nearby source after testing both front and back bearings over three observations'
-            stop_evidence = [
+            fractional_lag = fractional_peak_lag(small, peak_index, lag_limit)
+            probe_action = self._probe_action(
+                o, estimate, p, forward, left, front, back, fractional_lag,
+                self.history[-1]['usable_for_stop'],
+            )
+        if probe_action is not None:
+            action = probe_action
+            probe = estimate['stop_probe']
+            reason = probe.get('reason', 'turn in place to measure ITD changes before stopping')
+            probe_evidence = [
                 observation_id + ':' + modality
-                for observation_id in estimate['stop_check']['supporting_observation_ids']
+                for observation_id in probe['supporting_observation_ids']
                 for modality in ('audio', 'pose')
             ]
-            evidence = list(dict.fromkeys(evidence + stop_evidence))
+            evidence = list(dict.fromkeys(evidence + probe_evidence))
         elif front_clear<.65 or o['collided_previous_step'] or o.get('blocked_previous_step',False):
             action='turn_left' if left_clear>=right_clear else 'turn_right';reason='depth/collision blocks forward; turn toward greater clearance'
         elif accepted and abs(ild)>2.5 and self.turns<3:
