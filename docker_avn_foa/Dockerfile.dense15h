@@ -1,0 +1,4 @@
+FROM rdpi/avn-foa-sameroom:0.1
+COPY avn_foa_sameroom /opt/avn_dense15h/avn_foa_sameroom
+ENV PYTHONPATH=/opt/avn_dense15h PYTHONDONTWRITEBYTECODE=1 OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
+WORKDIR /workspace/SAVN-CE
