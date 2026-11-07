@@ -53,3 +53,9 @@ features = extractor('/path/to/original/dsf/runtime')(sample['waveform'][None])
 活动标签基于10ms素材RMS阈值和实际RIR起点延迟；100ms帧覆盖率>=80%为活动，混响尾声和不确定边界设ignore。无活动帧ACCDOA为0，真实距离不作为向量模长。CSV必须配合NPZ的ignore_mask使用。`masked_adpit_loss`为单源a0专用，拒绝多实例标签，保留三轨辅助复制语义。
 
 本批主要是同房间、接近水平高度的定位数据；即使FOA格式上下校准通过，也不能据此宣称完整3D或NLOS覆盖。没有启动训练、LLM训练或策略修改。
+
+## 后续制式核查与增强建议
+
+已核实旧加载器的ACN声道与前/左/上坐标约定，以及TAU RIR的SN3D声明；METU旧FOA文件缺失，整个旧训练池仍为部分核实。参见 [制式溯源报告](docs/LEGACY_FOA_FORMAT_AUDIT_zh-CN.md)。
+
+训练建议仅在线做音频与标签同步的水平yaw增强，保持竖直和原split；原ACS8包含镜像和上下翻转，另作消融。参见 [训练增强建议](docs/TRAINING_AUGMENTATION_zh-CN.md)。未启动训练、未扩写现有音频。

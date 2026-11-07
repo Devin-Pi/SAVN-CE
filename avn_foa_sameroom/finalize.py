@@ -7,7 +7,8 @@ from .common import write_json,sha
 def main():
     p=argparse.ArgumentParser();p.add_argument('root',type=Path);p.add_argument('--assets',type=Path,required=True);a=p.parse_args()
     report=json.loads((a.root/'validation_report.json').read_text());assert report['status']=='passed'
-    write_json(a.root/'checkpoint_format_audit.json',dict(checkpoint_sha256='85e380a6a8d2f1e545aa093e3f086f0a4d7830a15c41f7f79d047d7d9c1f9f90',archived_configuration_audio_format='foa',checkpoint_hyperparameters_have_normalization_or_coordinate_field=False,exact_checkpoint_normalization_self_description='unverified',loader_feature_channel_processing='archived ACN storage order retained; IV component variable names do not reorder channels',new_dataset_format='independently calibrated listener-local ACN/SN3D W/Y/Z/X',evidence_boundary='Strict load and forward verify tensor/config compatibility, not source-domain normalization or transferred localization accuracy.'))
+    if not (a.root/'checkpoint_format_audit.json').exists():
+        write_json(a.root/'checkpoint_format_audit.json',dict(checkpoint_sha256='85e380a6a8d2f1e545aa093e3f086f0a4d7830a15c41f7f79d047d7d9c1f9f90',archived_configuration_audio_format='foa',checkpoint_hyperparameters_have_normalization_or_coordinate_field=False,exact_checkpoint_normalization_self_description='unverified',loader_feature_channel_processing='archived ACN storage order retained; IV component variable names do not reorder channels',new_dataset_format='independently calibrated listener-local ACN/SN3D W/Y/Z/X',evidence_boundary='Strict load and forward verify tensor/config compatibility, not source-domain normalization or transferred localization accuracy.'))
     records=[json.loads(l) for l in (a.root/'metadata.jsonl').read_text().splitlines()]
     repair=json.loads((a.root/'navmesh_repair.json').read_text()) if (a.root/'navmesh_repair.json').exists() else {}
     report['navmesh_repair']=repair
@@ -86,6 +87,9 @@ def main():
         '实际运行命令见 RUN_COMMANDS.sh；代码、容器ID、配置和文件哈希见 environment.json、environment.freeze.json、SHA256SUMS。同种子下任务/几何/声音片段采样可复现；RLR未暴露内部随机种子，不承诺RIR跨硬件逐字节一致，实际文件哈希可追溯。','',
         '**本次未开始完整模型训练、LLM训练或Agent策略修改。生成和前向成功不代表模型已经学会定位，也不代表解决跨房间NLOS。**','']
     text='\n'.join(lines)
+    if (a.root/'legacy_foa_format_audit.json').exists():
+        text=text.replace('检查点超参数不含声道归一化/坐标系的自描述字段，旧配置只声明FOA；精确历史归一化仍标为unverified，不能靠一次前向认定定位语义完全兼容。新数据的AmbiX约定由独立诊断确认。', '后续溯源已确认旧加载器的ACN声道及前/左/上坐标约定与新数据一致，TAU RIR明确为SN3D；METU旧FOA文件缺失，仍不能把整个旧训练池统一确认为SN3D。新数据的AmbiX约定由独立诊断确认。')
+        text+='\n## 后续核查与训练准备\n\n[旧权重、RIR与FOA制式核查](LEGACY_FOA_FORMAT_AUDIT_zh-CN.md)；[训练增强建议](TRAINING_AUGMENTATION_zh-CN.md)。建议训练时仅做音频与标签同步的水平yaw增强，不原样启用全部ACS8；未开始训练。\n'
     (a.root/'README_zh-CN.md').write_text(text)
     (a.root/'coverage_report.md').write_text(text)
     # Hash every finished data/report artifact. The seal itself is deliberately excluded.
