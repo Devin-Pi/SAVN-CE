@@ -38,3 +38,10 @@ python -m avn_foa_sameroom.finalize research_outputs/AVN-FOA-SameRoom-v0.1 \
 # 6) Focused functional tests, also run in the new Docker image:
 python -m avn_foa_sameroom.tests
 # No optimizer/training command was run.
+
+# Final independent navigation audit and replacement actually executed after batch:
+python -m avn_foa_sameroom.navcheck research_outputs/AVN-FOA-SameRoom-v0.1
+python -m avn_foa_sameroom.repair_nav research_outputs/AVN-FOA-SameRoom-v0.1 \
+  --assets research_outputs/AVN-FOA-SameRoom-v0.1_assets/audit_parallel \
+  --quarantine research_outputs/AVN-FOA-SameRoom-v0.1_assets/rejected_isolated_navmesh
+# Followed by navcheck, native_check, validate and finalize again.
