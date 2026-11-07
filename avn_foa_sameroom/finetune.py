@@ -107,15 +107,20 @@ def evaluate(model,front,data,runtime,classes,batch,workers,raw_output=None):
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('--data',type=Path,required=True);p.add_argument('--runtime',type=Path,required=True)
+    p.add_argument('--reference-data',type=Path,help='Additional sparse validation each epoch and test after training; never used for selection')
     p.add_argument('--checkpoint',type=Path,required=True);p.add_argument('--output',type=Path,required=True)
     p.add_argument('--epochs',type=int,default=100);p.add_argument('--batch',type=int,default=8);p.add_argument('--workers',type=int,default=4)
     p.add_argument('--encoder-lr',type=float,default=1e-5);p.add_argument('--head-lr',type=float,default=1e-4);p.add_argument('--seed',type=int,default=7)
     p.add_argument('--resume',type=Path);p.add_argument('--loss',choices=('standard','balanced','foreground20'),default='standard');p.add_argument('--patience',type=int,default=0);p.add_argument('--smoke',action='store_true');a=p.parse_args()
     a.output.mkdir(parents=True,exist_ok=False);torch.manual_seed(a.seed);torch.cuda.manual_seed_all(a.seed);np.random.seed(a.seed);random.seed(a.seed)
     torch.backends.cudnn.benchmark=False;torch.backends.cudnn.deterministic=True
-    torch.set_float32_matmul_precision('medium') # original trainer: FP32 tensors with TF32 permitted
+    torch.set_float32_matmul_precision('high') # effective archived DSF setting, made explicit
     cmap=json.loads((a.data/'class_map.json').read_text())['official_category_to_class_id'];classes=[k for k,v in sorted(cmap.items(),key=lambda x:x[1])]
     train=TrainData(a.data,'train',window_s=10,hop_s=10,seed=a.seed,augment=True);val=TrainData(a.data,'validation',window_s=10,hop_s=10)
+    reference_val=None
+    if a.reference_data:
+        assert json.loads((a.reference_data/'class_map.json').read_text())['official_category_to_class_id']==cmap
+        reference_val=TrainData(a.reference_data,'validation',window_s=10,hop_s=10)
     backend=make_backend(a.runtime,a.checkpoint,classes);model=backend.model;front=extractor(a.runtime).cuda().eval()
     head=list(model.AVfnn_list[-1].parameters());head_ids={id(v) for v in head};encoder=[v for v in model.parameters() if id(v) not in head_ids]
     optim=torch.optim.Adam([dict(params=encoder,lr=a.encoder_lr,name='encoder'),dict(params=head,lr=a.head_lr,name='new_21class_output')])
@@ -123,7 +128,10 @@ def main():
     scaler=torch.cuda.amp.GradScaler(enabled=False)
     config=dict(**{k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()},classes=classes,window_s=10,label_rate_hz=10,
         augmentation='train-only independent continuous passive yaw, applied before STFT; target XYZ rotates identically',
-        train_records=len(train),validation_records=len(val),head_replacement='last linear128->189; all other encoder/MLP weights initialized from original',
+        train_records=len(train),validation_records=len(val),reference_validation_records=len(reference_val) if reference_val is not None else 0,
+        steps_per_epoch=math.ceil(len(train)/a.batch),total_optimizer_steps=total_steps,effective_matmul_precision=torch.get_float32_matmul_precision(),
+        reference_dataset_seal_sha256=sha(a.reference_data/'SHA256SUMS') if a.reference_data else None,
+        reference_used_for_selection=False,head_replacement='last linear128->189; all other encoder/MLP weights initialized from original',
         all_model_parameters_trainable_from_step1=all(v.requires_grad for v in model.parameters()),parameter_count=sum(v.numel() for v in model.parameters()),
         encoder_trainable_parameters=sum(v.numel() for v in encoder),head_trainable_parameters=sum(v.numel() for v in head),
         initial_checkpoint_sha256=sha(a.checkpoint),dataset_seal_sha256=sha(a.data/'SHA256SUMS'),split_manifest_sha256=sha(a.data/'split_manifest.json'),
@@ -187,6 +195,8 @@ def main():
                 write_json(a.output/'smoke_result.json',dict(status='passed',loss=float(loss),gradient_norm=float(gradnorm),peak_mib=torch.cuda.max_memory_allocated()/2**20,wall_s=time.monotonic()-started,parameter_changes=changes));return
         result=evaluate(model,front,val,a.runtime,classes,a.batch,a.workers)
         row=dict(epoch=epoch+1,global_step=step,train_loss=running/count,validation=result,epoch_wall_s=time.monotonic()-epoch_start,elapsed_s=prior_elapsed+time.monotonic()-started,evaluation_precision='FP32',learning_rates=[g['lr'] for g in optim.param_groups])
+        if reference_val is not None:
+            row['reference_validation']=evaluate(model,front,reference_val,a.runtime,classes,a.batch,a.workers)
         history.append(row)
         with (a.output/'history.jsonl').open('a') as f:f.write(json.dumps(row)+'\n')
         print(json.dumps(dict(event='epoch',**row)),flush=True)
@@ -199,6 +209,10 @@ def main():
     saved=torch.load(str(a.output/'best.pt'),map_location='cpu');model.load_state_dict(saved['model_state_dict'],strict=True)
     # Validation selects the checkpoint; only now open and score the internal test split.
     test=TrainData(a.data,'test',window_s=10,hop_s=10);test_result=evaluate(model,front,test,a.runtime,classes,a.batch,a.workers,a.output/'test_predictions.npz')
-    write_json(a.output/'results.json',dict(status='completed',best_epoch=saved['epoch'],completed_epochs=len(history),optimizer_steps=step,best_validation=saved['validation'],test=test_result,elapsed_s=prior_elapsed+time.monotonic()-started,best_checkpoint_sha256=sha(a.output/'best.pt'),initial_checkpoint_sha256=sha(a.checkpoint),dataset_seal_sha256=sha(a.data/'SHA256SUMS'),test_used_for_selection=False,agent_success_not_evaluated=True,requested_epochs=a.epochs,all_requested_epochs_completed=len(history)==a.epochs))
+    reference_test_result=None
+    if a.reference_data:
+        reference_test=TrainData(a.reference_data,'test',window_s=10,hop_s=10)
+        reference_test_result=evaluate(model,front,reference_test,a.runtime,classes,a.batch,a.workers,a.output/'reference_test_predictions.npz')
+    write_json(a.output/'results.json',dict(status='completed',best_epoch=saved['epoch'],completed_epochs=len(history),optimizer_steps=step,best_validation=saved['validation'],test=test_result,reference_test=reference_test_result,reference_used_for_selection=False,elapsed_s=prior_elapsed+time.monotonic()-started,best_checkpoint_sha256=sha(a.output/'best.pt'),initial_checkpoint_sha256=sha(a.checkpoint),dataset_seal_sha256=sha(a.data/'SHA256SUMS'),test_used_for_selection=False,agent_success_not_evaluated=True,requested_epochs=a.epochs,all_requested_epochs_completed=len(history)==a.epochs))
     print('TRAINING_COMPLETE',json.dumps(test_result),flush=True)
 if __name__=='__main__':main()

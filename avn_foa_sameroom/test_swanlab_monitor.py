@@ -36,6 +36,9 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(mapped['training/epoch'], 7)
         self.assertEqual(mapped['val/SELD'], .3)
         self.assertEqual(mapped['val/LE'], 15.)
+        row['reference_validation']=dict(row['validation'],SELD=.9)
+        self.assertEqual(epoch_metrics(row)['reference_val/SELD'],.9)
+        self.assertEqual(epoch_metrics(row)['val/SELD'],.3)
         row['validation']['SELD'] = float('nan')
         with self.assertRaises(ValueError):
             epoch_metrics(row)

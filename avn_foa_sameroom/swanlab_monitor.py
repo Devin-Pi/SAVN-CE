@@ -57,6 +57,8 @@ def epoch_metrics(row):
         'timing/training_elapsed_seconds': row['elapsed_s'],
     }
     values.update({f'val/{key}': row['validation'][key] for key in ('ER', 'F20', 'LE', 'LR', 'SELD', 'loss')})
+    if 'reference_validation' in row:
+        values.update({f'reference_val/{key}': value for key,value in row['reference_validation'].items()})
     if not all(isinstance(v, (int, float)) and math.isfinite(v) for v in values.values()):
         raise ValueError('Nonfinite or nonnumeric history metric')
     return values
@@ -91,6 +93,9 @@ def main():
     parser.add_argument('--key-file', type=Path, default=Path.home() / '.config/avn-swanlab/api_key')
     parser.add_argument('--training-pid', type=int, required=True)
     parser.add_argument('--project', default='AVN-Localization')
+    parser.add_argument('--experiment-name', default='FOA21-full100-seed7')
+    parser.add_argument('--id-prefix', default='avnfoa-full100-seed7-')
+    parser.add_argument('--source-file', type=Path)
     parser.add_argument('--poll-seconds', type=float, default=10)
     args = parser.parse_args()
     run_dir, state_dir = args.run_dir.resolve(), args.state_dir.resolve()
@@ -113,7 +118,7 @@ def main():
     config_payload = (run_dir / 'config.json').read_bytes()
     config = json.loads(config_payload)
     config_sha = hashlib.sha256(config_payload).hexdigest()
-    source_file = Path('/media/4tbssd/av_seld/workspaces/avn_foa_full_finetune_v1/code/avn_foa_sameroom/finetune.py')
+    source_file = args.source_file or Path('/media/4tbssd/av_seld/workspaces/avn_foa_full_finetune_v1/code/avn_foa_sameroom/finetune.py')
     source_sha = hashlib.sha256(source_file.read_bytes()).hexdigest() if source_file.exists() else None
     identity = process_identity(args.training_pid)
     state_path = state_dir / 'status.json'
@@ -121,8 +126,9 @@ def main():
     if previous.get('training_process') and identity is not None and identity != previous['training_process']:
         raise ValueError('Training process identity changed; inspect before reattaching')
     identity = identity or previous.get('training_process')
-    identifier = 'avnfoa-full100-seed7-' + hashlib.sha256((str(run_dir) + config_sha).encode()).hexdigest()[:12]
+    identifier = args.id_prefix + hashlib.sha256((str(run_dir) + config_sha).encode()).hexdigest()[:12]
     tracking_config = {k: config[k] for k in ('epochs', 'batch', 'seed', 'encoder_lr', 'head_lr', 'optimizer', 'loss', 'patience', 'precision')}
+    tracking_config.update({k:config[k] for k in ('train_records','validation_records','reference_validation_records','steps_per_epoch','total_optimizer_steps','effective_matmul_precision','reference_dataset_seal_sha256','reference_used_for_selection') if k in config})
     tracking_config.update(
         sample_rate_hz=16000, num_classes=len(config['classes']),
         source_config_sha256=config_sha, source_script_sha256=source_sha,
@@ -148,10 +154,10 @@ def main():
                'swanlab': False, 'hardware': True, 'monitor': True, 'monitor_interval': 30},
     )
     run = swanlab.init(
-        project=args.project, experiment_name='FOA21-full100-seed7',
+        project=args.project, experiment_name=args.experiment_name,
         id=identifier, resume='allow', mode='online', on_online_error='raise',
         public=False, logdir=str(state_dir / 'swanlog'), config=tracking_config, settings=settings,
-        description='Backfilled and followed from the original fixed-100-epoch training history. Training process/config untouched.',
+        description='Independent read-only history follower. Validation selects checkpoints; reference validation is diagnostic only. Training process/config untouched.',
     )
     state.update(status='following', swanlab_version=swanlab.__version__)
     # SDK versions expose public URLs differently; console prints the canonical link.
@@ -191,6 +197,8 @@ def main():
                     raise ValueError('Results do not describe the complete requested training')
                 final = {f'test/{k}': result['test'][k] for k in ('ER', 'F20', 'LE', 'LR', 'SELD', 'loss')}
                 final.update({'best/epoch': result['best_epoch'], 'best/val_SELD': result['best_validation']['SELD']})
+                if result.get('reference_test') is not None:
+                    final.update({f'reference_test/{k}':v for k,v in result['reference_test'].items()})
                 swanlab.log(final, step=config['epochs'] + 1)
                 swanlab.finish(state='success')
                 state.update(status='completed', final_test_enqueued=True, completed_at_unix=time.time())
