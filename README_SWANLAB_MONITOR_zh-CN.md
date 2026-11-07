@@ -1,5 +1,7 @@
 # 当前 100 epoch 训练的 SwanLab 独立监控
 
+运行更新：用户随后要求提前结束，已在95个完整epoch后停止训练和跟随采集器，并在同一SwanLab实验补录最终验证/测试结果。服务端状态为FINISHED；配置明确记录原计划100轮、实际95轮。最终结果见 [评估报告](README_AVN_FOA_EARLY_STOP_RESULTS_zh-CN.md)。以下保留初始部署和监控协议。
+
 已接入私有实验：[FOA21-full100-seed7](https://swanlab.cn/@rdpi1995/AVN-Localization/runs/avnfoa-full100-seed7-70ba503aa507)。账号需要有项目访问权限。
 
 监控程序只读取原始训练的 `history.jsonl`、`config.json`，训练结束后读取 `results.json`。它不导入 Torch、不加载权重、不访问训练音频，不修改训练配置、代码、优化器或数据，也不向训练进程发送信号。训练保持完整 100 epoch 和原验证集最佳 SELD 选择规则。

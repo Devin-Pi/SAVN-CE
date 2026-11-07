@@ -7,6 +7,9 @@ from .common import write_json
 
 
 def load(checkpoint,runtime):
+    # Match the effective setting applied by DSF.__init__ during finetuning.
+    torch.set_num_threads(2)
+    torch.set_float32_matmul_precision('high')
     sys.path.insert(0,str(runtime));import models.audio_encoder as architecture
     saved=torch.load(str(checkpoint),map_location='cpu',mmap=True);config=saved['config'];classes=config['classes']
     fn=architecture.resnet18;architecture.resnet18=lambda *,weights:fn(weights=None)

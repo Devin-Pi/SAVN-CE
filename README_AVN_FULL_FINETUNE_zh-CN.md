@@ -1,5 +1,7 @@
 # AVN-FOA 21 类 audio encoder 全网络微调
 
+实际运行更新：后续按用户要求在第95个完整epoch后提前结束，最佳权重来自第95轮。最终test SELD=0.255703、F20=0.708488、LE=32.7548°。本次没有完成100轮；详细结果和复现限制见 [提前结束后的最终报告](README_AVN_FOA_EARLY_STOP_RESULTS_zh-CN.md)。原始训练命令、配置和日志保留。
+
 本实验遵循完整 100 epoch、固定配置、训练结束后统一分析的协议。它使用 AVN-FOA-SameRoom-v0.1 的现有 21 类声音数据，从旧 audio-only 检查点初始化，替换最后分类/方向联合输出层，从第一个 batch 解冻全部网络。仅训练数据使用水平 yaw 增强。原模型、数据和 Agent 接口保持独立，不自动切换线上定位工具。
 
 ## 云端运行位置和命令
@@ -46,7 +48,7 @@ docker exec \
 - `models/AVmodel.py:18`：标准 ADPIT MSE。
 - `dataloaders/dataloader.py`：原训练集有 8 种 ACS 变换。
 
-本次采用标准 ADPIT MSE、Adam、FP32、按 epoch 余弦衰减，无 warmup、无 weight decay、无梯度裁剪、无提前停止。保留原 trainer 的 `torch.set_float32_matmul_precision('medium')`，即 FP32 张量并允许硬件 TF32 矩阵乘。没有使用 AMP。
+本次采用标准 ADPIT MSE、Adam、FP32、按 epoch 余弦衰减，无 warmup、无 weight decay、无梯度裁剪、无提前停止。原 trainer 的 medium 设置在本次模型加载时被 DSF.__init__ 覆盖为 high，因此本次有效矩阵乘法精度为 high（FP32张量，允许TF32）；最终独立推理也使用 high。没有使用 AMP。
 
 与原实验的必要差异：完整 100 epoch；21 类；最终 Linear 从 128→117 换为 128→189（3 轨 × XYZ × 21 类）；旧 encoder 学习率 1e-5，新输出层 1e-4；原生 16 kHz 前端；ignore 帧不监督；水平连续 yaw 替代原 8 种包含反射/翻转的 ACS。没有将 yaw 增强宣称为扩增了独立录音时长。
 
