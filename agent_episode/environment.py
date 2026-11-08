@@ -48,6 +48,7 @@ class OfficialEpisodeEnv:
         assert (Path(c.AUDIO.SOURCE_SOUND_DIR)/self._episode.goals[0].sound_id).is_file()
         merge_sim_episode_config(c,self._episode)
         self.runtime_sound_schedule=resolve_sound_schedule(self.sound_schedule,c.AGENT_0.ONSET,c.AGENT_0.OFFSET,c.STEP_TIME,self.max_steps)
+        c.defrost()  # Official merge freezes the simulator and agent config.
         c.AGENT_0.ONSET=self.runtime_sound_schedule['runtime_onset_s'];c.AGENT_0.OFFSET=self.runtime_sound_schedule['runtime_offset_s']
         (self.output/'sound_schedule.json').write_text(json.dumps(self.runtime_sound_schedule,indent=2)+'\n')
         cfg.freeze();self.config=c
