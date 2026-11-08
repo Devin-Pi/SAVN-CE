@@ -1,0 +1,13 @@
+{
+  "status": "passed",
+  "candidate_id": "avn_foa_dense15h_v02_epoch097",
+  "archived_utc": "2026-11-08T00:46:40.096431+00:00",
+  "source_checkpoint": "/media/4tbssd/av_seld/workspaces/avn_foa_dense15h_finetune_v02/run_seed7_full100/best.pt",
+  "archived_checkpoint": "/media/4tbssd/av_seld/workspaces/localization_candidates/avn_foa_dense15h_v02_epoch097/best.pt",
+  "checkpoint_sha256": "8bf8cd0e521084f8ca2a685a8e9a12b769ae476ba37880be41bf53f0613c0fc1",
+  "checkpoint_bytes": 545448350,
+  "independent_copy": true,
+  "source_unchanged": true,
+  "agent_configuration_modified": false,
+  "activated": false
+}

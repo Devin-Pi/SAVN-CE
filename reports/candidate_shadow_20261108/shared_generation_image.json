@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "image": "rdpi/avn-foa-sameroom:dense15h-sharedfoa-v1",
+  "image_id": "sha256:ada076bbcf6336a8adfa9b050402b32c7fe16256c16f1d51d3bca9597d9d2219",
+  "conversion_contract_version": "savnce-rlr-foa-1.0",
+  "conversion_module_sha256": "c1946d34cafaeece3cb22f068b357911b4e0d6869b32cccad0441a83b9a75173",
+  "generation_image_binding_sha256": "9a2158f29d09fff36cf8045dc2f6ab70b63cc6913d7a03e7bae90fe9e8bf7833",
+  "matches_simulator_binding": true,
+  "generation_or_training_started": false
+}

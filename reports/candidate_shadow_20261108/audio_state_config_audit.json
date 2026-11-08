@@ -1,0 +1,15 @@
+{
+  "status": "passed",
+  "independent_rir_count": 1080,
+  "saved_generation_temporalCoherence": false,
+  "all_rir_manifest_records_history_reset": true,
+  "generator_reset_code": "generate.py calls AudioSensor.reset before every independent RIR; C++ reset destroys RLRA context",
+  "original_config_sha256": "39c51c96033c5a8cf552b39f3c690f21dbcee37bda47f1748885d8c6d4ba972f",
+  "rir_manifest_sha256": "dbabc937a7969af1e8e88fc12d4e5c3aad1c74dede537004910a2ac0908da44e",
+  "native_online_temporalCoherence": true,
+  "native_source_path": "/workspace/SAVN-CE/outputs/avn_candidate_shadow_worktree/savnce/sims/savnce_simulator.py",
+  "native_source_sha256": "9b433627c0d3e69f9cb25e2dc39a80a3ff4962c5d856395bcd10ce9be9c5b1e4",
+  "loaded_binding_sha256": "9a2158f29d09fff36cf8045dc2f6ab70b63cc6913d7a03e7bae90fe9e8bf7833",
+  "interpretation": "Independent offline configurations use false plus reset. Native online runs retain true for continuous trajectories; rapid motion can spatially blur IR. These are distinct settings, not proof of dynamic acoustic accuracy.",
+  "existing_datasets_modified": false
+}

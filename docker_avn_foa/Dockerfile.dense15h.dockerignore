@@ -1,0 +1,8 @@
+*
+!avn_foa_sameroom/
+!avn_foa_sameroom/**
+**/__pycache__/
+**/*.pyc
+
+!spatial_audio/
+!spatial_audio/**

@@ -1,0 +1,17 @@
+{
+  "engineering_status": "passed_with_recorded_scope",
+  "online_quality_status": "not_accepted",
+  "candidate_activated": false,
+  "tests": {
+    "legacy_and_candidate_unit_tests": 11,
+    "shared_contract_unit_tests": 3,
+    "frozen_direction_cases": 28,
+    "new_physical_direction_cases": 28,
+    "actual_pilot_transform_windows_bitwise_identical": 8
+  },
+  "visibility_scope": "A supported for local wrapper and six tested direct configurations; opaque SDK internals not exhaustively audited",
+  "dynamic_audio_scope": "12-step translation/yaw overlap-add and coordinate consistency passed; moving reverb physical accuracy remains unverified",
+  "old_training_data_and_weight_preserved": true,
+  "api_key_actual_codex_successes": 72,
+  "model": "gpt-6.1-sol"
+}

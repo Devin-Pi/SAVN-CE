@@ -9,6 +9,11 @@ import subprocess
 import time
 import zipfile
 
+try:
+    from .spatial_frames import listener_to_habitat
+except ImportError:
+    from spatial_frames import listener_to_habitat
+
 WINDOW_S = 10
 MODEL_NAME = 'localization_tool'
 MODEL_FORMAT = {
@@ -66,7 +71,14 @@ class Worker:
             self.log.close()
 
 
-def worker_command(container):
+def worker_command(container, profile='legacy'):
+    if profile=='avn_foa_candidate':
+        return ['docker','exec','-i','-e','CUDA_VISIBLE_DEVICES=2','-e','PYTHONDONTWRITEBYTECODE=1',
+            '-w','/workspaces/avn_candidate_shadow_runtime_v1',container,'python','candidate_worker.py',
+            '--training-source','/workspaces/avn_foa_dense15h_finetune_v02/code_snapshot',
+            '--runtime','/workspaces/dsf_localization_runtime_v1','--checkpoint',
+            '/workspaces/localization_candidates/avn_foa_dense15h_v02_epoch097/best.pt']
+    if profile!='legacy':raise ValueError('Unknown localization profile')
     return ['docker', 'exec', '-i', '-e', 'CUDA_VISIBLE_DEVICES=2', '-e', 'PYTHONDONTWRITEBYTECODE=1',
             '-w', '/workspaces/dsf_localization_runtime_v1', container, 'python', 'dsf_worker.py',
             '--source', '/workspaces/dsf_localization_runtime_v1', '--checkpoint',
@@ -79,7 +91,13 @@ def finite_vector(value, size):
 
 
 class LocalizationTool:
-    def __init__(self, request):
+    def __init__(self, request, *, profile='legacy'):
+        if profile not in ('legacy','avn_foa_candidate'):raise ValueError('Unknown localization profile')
+        self.profile=profile
+        self.limitations=LIMITATIONS if profile=='legacy' else [
+            '21 AVN object-named sound classes; ACCDOA scores uncalibrated; no range or instance identity.',
+            'All history uses the latest observed listener orientation as its fixed basis; movement within the 10s window is uncalibrated.',
+            'Candidate validated on dense static single-source data; sparse/short/online transfer unverified.']
         self.request = request
         self.description = None
         self.reset_episode(None)
@@ -95,7 +113,7 @@ class LocalizationTool:
                 self.description = self.request({'command': 'describe'})
             except (OSError, ValueError, RuntimeError):
                 self.description = {'status': 'unavailable', 'reason': 'DSF worker unavailable'}
-        return {**self.description, 'tool': MODEL_NAME, 'input_format': MODEL_FORMAT, 'limitations': LIMITATIONS}
+        return {**self.description, 'tool': MODEL_NAME, 'input_format': MODEL_FORMAT, 'limitations': self.limitations}
 
     def add_observation(self, observation):
         if self.episode_ref is None:
@@ -109,7 +127,7 @@ class LocalizationTool:
             raise ValueError('Noncontiguous observation sequence')
         fmt = observation.get('audio_format', {})
         valid_format = (
-            rate in (16000, 24000) and dt == 0.25 and all(fmt.get(k) == v for k, v in MODEL_FORMAT.items())
+            rate in ((16000,) if self.profile=='avn_foa_candidate' else (16000,24000)) and dt == 0.25 and all(fmt.get(k) == v for k, v in MODEL_FORMAT.items())
             and observation['shapes'].get('foa_audio') == [round(rate * dt), 4]
         )
         data = None
@@ -136,7 +154,7 @@ class LocalizationTool:
 
     def analyze(self, observation_ids):
         def result(status, reason, **fields):
-            return {'status': status, 'reason': reason, 'limitations': LIMITATIONS, **fields}
+            return {'status': status, 'reason': reason, 'limitations': self.limitations, **fields}
 
         if (not isinstance(observation_ids, list) or not observation_ids
                 or len(observation_ids) > 40 or any(not isinstance(i, str) for i in observation_ids)
@@ -166,14 +184,15 @@ class LocalizationTool:
         for row in rows:
             content.update(row['data'])
         key = (tuple(span), content.hexdigest(), backend['checkpoint_sha256'],
-               tuple(sorted(backend['source_sha256'].items())), last['rate'])
+               tuple(sorted(backend['source_sha256'].items())), last['rate'], self.profile, tuple(last['pose']['rotation_xyzw']))
         if key in self.cache:
             cached = self.cache[key]
             return {**cached, 'provenance': {**cached['provenance'], 'cache_hit': True},
                     'cache_read_unix_s': time.time()}
         try:
             prediction = self.request({'command': 'predict', 'sample_rate': last['rate'],
-                                       'windows_npy_base64': [base64.b64encode(r['data']).decode() for r in rows]})
+                                       'windows_npy_base64': [base64.b64encode(r['data']).decode() for r in rows],
+                                       **({'anchor_rotation_xyzw':last['pose']['rotation_xyzw']} if self.profile=='avn_foa_candidate' else {})})
         except (OSError, RuntimeError, ValueError):
             return result('error', 'DSF worker request failed', provenance=provenance)
         if prediction['status'] != 'ok':
@@ -185,15 +204,22 @@ class LocalizationTool:
             times.append(nominal)
             for event in events:
                 x, y, z = event['direction_unit_xyz']
-                event.update(direction_frame='habitat_world_ambix_xyz', pose_ref=row['id'],
-                             direction_unit_habitat_xyz=[-y, z, -x])
+                if self.profile=='avn_foa_candidate':
+                    h=listener_to_habitat([x,y,z],last['pose']['rotation_xyzw'])
+                    event.update(direction_frame='listener_anchor_ambix_xyz',pose_ref=row['id'],
+                        orientation_pose_ref=last['id'],direction_unit_habitat_xyz=h,
+                        direction_unit_world_ambix_xyz=[-h[2],-h[0],h[1]])
+                else:
+                    event.update(direction_frame='habitat_world_ambix_xyz', pose_ref=row['id'],
+                                 direction_unit_habitat_xyz=[-y, z, -x])
         record = result(
             'ok', None, provenance=provenance,
             timing={'audio_start_s': start, 'audio_end_s': end, 'frame_times_s': times,
                     'result_available_at_audio_time_s': end, 'result_available_unix_s': time.time(),
                     **prediction['timing_s']},
-            input_format={**MODEL_FORMAT, 'sample_rate_hz': last['rate'], 'model_sample_rate_hz': 24000,
-                          'resampling': 'polyphase 3/2; original bandwidth <=8 kHz' if last['rate']==16000 else None},
+            input_format={**MODEL_FORMAT, 'sample_rate_hz': last['rate'], 'model_sample_rate_hz': 16000 if self.profile=='avn_foa_candidate' else 24000,
+                          'model_coordinate_frame':'listener_anchor' if self.profile=='avn_foa_candidate' else 'habitat_world',
+                          'resampling': None if self.profile=='avn_foa_candidate' else ('polyphase 3/2; original bandwidth <=8 kHz' if last['rate']==16000 else None)},
             pose_refs=[{'observation_id': row['id'], 'timestamp_s': row['time'],
                         'receiver_position_habitat_xyz_m': row['receiver'], 'robot_pose': row['pose']} for row in rows],
             events=prediction['events_by_frame'], raw_accdoa=prediction['raw_accdoa'],
@@ -225,4 +251,4 @@ def compact(result):
             'summary': ('Supported events in the last second of the analyzed window.' if recent
                         else 'No supported event detected in the last second of the analyzed window. '
                              'Any listed earlier events are historical and share the same input window.'),
-            'limitations': LIMITATIONS}
+            'limitations': result.get('limitations',LIMITATIONS)}

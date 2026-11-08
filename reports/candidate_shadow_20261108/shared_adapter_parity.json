@@ -1,0 +1,35 @@
+{
+  "status": "passed",
+  "checkpoint_sha256": "8bf8cd0e521084f8ca2a685a8e9a12b769ae476ba37880be41bf53f0613c0fc1",
+  "input_shape": [
+    160000,
+    4
+  ],
+  "sample_rate_hz": 16000,
+  "frontend": {
+    "sample_rate_hz": 16000,
+    "n_fft": 512,
+    "win_length": 342,
+    "hop_length": 100,
+    "n_mels": 128,
+    "fmax": 8000
+  },
+  "features_shape": [
+    1,
+    7,
+    1600,
+    128
+  ],
+  "output_shape": [
+    100,
+    189
+  ],
+  "adapter_vs_frozen_direct_max_abs_error": 0.0,
+  "model_time_normalization_max_abs_error": 0.0,
+  "model_normalization": "(feature-time_mean)/time_std.clamp(min=1e-8), PyTorch default sample standard deviation",
+  "external_scaler_used": false,
+  "waveform_rescaling": false,
+  "resampling": false,
+  "invalid_short_rate_channels_rejected": true,
+  "input_wav_sha256": "77a1e453657b219c62ad0a6db65585e45fae2938f73189061f22c39f21327bd8"
+}

@@ -1,0 +1,39 @@
+{
+  "status": "completed",
+  "best_epoch": 97,
+  "completed_epochs": 100,
+  "optimizer_steps": 27000,
+  "best_validation": {
+    "ER": 0.04238683127572016,
+    "F20": 0.9652929235058448,
+    "LE": 5.578199201911163,
+    "LR": 0.9931677018633541,
+    "SELD": 0.028729050368173574,
+    "loss": 0.0008085287114210115
+  },
+  "test": {
+    "ER": 0.024897119341563786,
+    "F20": 0.9822103618130246,
+    "LE": 4.9149184289620775,
+    "LR": 0.9954451345755693,
+    "SELD": 0.018636681334023124,
+    "loss": 0.0007435044386494593
+  },
+  "reference_test": {
+    "ER": 1.1282679738562091,
+    "F20": 0.026098468814754305,
+    "LE": 131.93524358031613,
+    "LR": 0.03351110581502738,
+    "SELD": 0.9504079936681571,
+    "loss": 0.005508129598779811
+  },
+  "reference_used_for_selection": false,
+  "elapsed_s": 22616.903053715825,
+  "best_checkpoint_sha256": "8bf8cd0e521084f8ca2a685a8e9a12b769ae476ba37880be41bf53f0613c0fc1",
+  "initial_checkpoint_sha256": "85e380a6a8d2f1e545aa093e3f086f0a4d7830a15c41f7f79d047d7d9c1f9f90",
+  "dataset_seal_sha256": "c4d77d6ea96d125aca67e7ae4a5c19de4f90676055a9c4234f4162eb8b827c65",
+  "test_used_for_selection": false,
+  "agent_success_not_evaluated": true,
+  "requested_epochs": 100,
+  "all_requested_epochs_completed": true
+}

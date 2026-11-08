@@ -1,0 +1,21 @@
+{
+  "container_id": "9dca0d8011a6e3e005e7f9d1c6349e226932a20cfdbcd4379297e6571afd7a3b",
+  "image_id": "sha256:0b1ebe5dd42682bb8eda97ecf10a09f70f18d2d4af35f82b9271badac5dbeb27",
+  "readonly_root": true,
+  "user": "1001:1001",
+  "cap_drop": [
+    "ALL"
+  ],
+  "mount_destinations": [
+    "/usr/local/bin/codex",
+    "/codex_home/auth.json",
+    "/codex_home/config.toml",
+    "/etc/ssl/certs",
+    "/inputs"
+  ],
+  "credential_values_logged": false,
+  "scene_assets_mounted": false,
+  "model": "gpt-6.1-sol",
+  "provider_host": "code.ppchat.vip",
+  "all_bind_mounts_readonly": true
+}

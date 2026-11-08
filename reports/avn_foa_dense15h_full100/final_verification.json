@@ -1,0 +1,12 @@
+{
+  "status": "passed",
+  "checked_utc": "2026-11-08T00:22:20.622497+00:00",
+  "training_container_exit_code": 0,
+  "analysis_container_exit_code": 0,
+  "training_finished_utc": "2026-11-07T20:06:24.924172265Z",
+  "frozen_training_code_unchanged": true,
+  "both_evaluated_checkpoint_hashes_unchanged": true,
+  "original_weights_and_data_mounted_read_only": true,
+  "new_test_primary": true,
+  "old_sparse_test_diagnostic_only": true
+}

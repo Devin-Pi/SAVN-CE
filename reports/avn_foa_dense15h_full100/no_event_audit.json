@@ -1,0 +1,14 @@
+{
+  "main": {
+    "all_no_event_clips": 54,
+    "all_zero_wav_confirmed": true,
+    "valid_frames": 5400,
+    "no_ignored_frames": true
+  },
+  "reference": {
+    "all_no_event_clips": 36,
+    "all_zero_wav_confirmed": true,
+    "valid_frames": 3600,
+    "no_ignored_frames": true
+  }
+}

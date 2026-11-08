@@ -1,0 +1,223 @@
+{
+  "status": "passed",
+  "engine": {
+    "habitat_sim_version": "0.2.2",
+    "loaded_binding_path": "/opt/conda/envs/ss/lib/python3.9/site-packages/habitat_sim/_ext/habitat_sim_bindings.cpython-39-x86_64-linux-gnu.so",
+    "loaded_binding_sha256": "9a2158f29d09fff36cf8045dc2f6ab70b63cc6913d7a03e7bae90fe9e8bf7833",
+    "local_source_tree_git_head": "4f61e321477708fa606fbd8f42b4bef41d67c672",
+    "AudioSensor_cpp_sha256": "fe37604e0379af7deaf3c72e487d297177d2cb6928ed13fa38d4acfdb60b8dc7",
+    "AudioSensor_cpp_path": "/app/habitat-sim/src/esp/sensor/AudioSensor.cpp",
+    "local_source_query_body": "bool AudioSensor:: sourceIsVisible() const\n{\n  // Compute ray distance and unit-length direction.\n  vec3f direction = sourcePosition_ - listenerPosition_;\n  const float distance = direction.norm();\n  direction /= distance;\n\n  // Small bias to prevent self intersections.\n  const float epsilon = std::min( distance, 0.0001f );\n\n  // Initialize ray.\n  RLRA_Ray ray = {};\n  ray.origin[0] = sourcePosition_[0];\n  ray.origin[1] = sourcePosition_[1];\n  ray.origin[2] = sourcePosition_[2];\n  ray.direction[0] = direction[0];\n  ray.direction[1] = direction[1];\n  ray.direction[2] = direction[2];\n  ray.tMin = epsilon;\n  ray.tMax = distance - epsilon;\n\n  // Trace ray.\n  if ( RLRA_TraceRayAnyHit(context, &ray) != RLRA_Success ) {\n    return false;\n  }\n\n  // Source is visible if there is no intersection.\n  return ray.hit == RLRA_RayHit_False;\n}\n",
+    "binary_source_match_scope": "Local build source plus functional reproduction; no decompilation or inspection inside the prebuilt RLRA_Simulate library",
+    "renderer_call_chain": "SAVNCE -> audio sensor runSimulation -> RLRA_Simulate; sourceIsVisible separately constructs a ray and calls RLRA_TraceRayAnyHit",
+    "source_query_is_external_binding": true,
+    "all_direct_diagnostics_passed": true,
+    "classification": "A supported for this wrapper and tested geometry: external query ray is reversed; no evidence it gates the direct renderer. Internal SDK paths are not exhaustively audited.",
+    "no_engine_patch": true,
+    "no_existing_dataset_rebuilt": true
+  },
+  "cases": [
+    {
+      "fixture_wall_center_in_export": null,
+      "fixture_direction_chosen_from_geometry_only": true,
+      "fixture_expected_matches_export": true,
+      "acoustic_mesh_bounds": [
+        [
+          -3.0,
+          -3.000001,
+          -3.000001
+        ],
+        [
+          3.0,
+          3.000001,
+          3.000001
+        ]
+      ],
+      "acoustic_mesh_triangles": 18,
+      "blocked": false,
+      "source": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "actual_segment_los": true,
+      "sourceIsVisible": true,
+      "direct_rir_peak": 0.5199876427650452,
+      "direct_rir_energy": 0.36052027557961497,
+      "query_changed_cached_response": false,
+      "direct_render_matches_independent_geometry": true
+    },
+    {
+      "fixture_wall_center_in_export": null,
+      "fixture_direction_chosen_from_geometry_only": true,
+      "fixture_expected_matches_export": true,
+      "acoustic_mesh_bounds": [
+        [
+          -3.0,
+          -3.000001,
+          -3.000001
+        ],
+        [
+          3.0,
+          3.000001,
+          3.000001
+        ]
+      ],
+      "acoustic_mesh_triangles": 18,
+      "blocked": false,
+      "source": [
+        0.0,
+        0.0,
+        -2.0
+      ],
+      "actual_segment_los": true,
+      "sourceIsVisible": false,
+      "direct_rir_peak": 0.25654417276382446,
+      "direct_rir_energy": 0.08775760185237574,
+      "query_changed_cached_response": false,
+      "direct_render_matches_independent_geometry": true
+    },
+    {
+      "fixture_wall_center_in_export": null,
+      "fixture_direction_chosen_from_geometry_only": true,
+      "fixture_expected_matches_export": true,
+      "acoustic_mesh_bounds": [
+        [
+          -3.0,
+          -3.000001,
+          -3.000001
+        ],
+        [
+          3.0,
+          3.000001,
+          3.000001
+        ]
+      ],
+      "acoustic_mesh_triangles": 18,
+      "blocked": false,
+      "source": [
+        0.0,
+        0.0,
+        -2.5
+      ],
+      "actual_segment_los": true,
+      "sourceIsVisible": false,
+      "direct_rir_peak": 0.20373614132404327,
+      "direct_rir_energy": 0.0553489739912627,
+      "query_changed_cached_response": false,
+      "direct_render_matches_independent_geometry": true
+    },
+    {
+      "fixture_wall_center_in_export": [
+        0.0,
+        -0.75,
+        0.0
+      ],
+      "fixture_direction_chosen_from_geometry_only": true,
+      "fixture_expected_matches_export": true,
+      "acoustic_mesh_bounds": [
+        [
+          -3.0,
+          -3.000001,
+          -3.000001
+        ],
+        [
+          3.0,
+          3.000001,
+          3.000001
+        ]
+      ],
+      "acoustic_mesh_triangles": 30,
+      "blocked": true,
+      "source": [
+        0.0,
+        -1.0,
+        0.0
+      ],
+      "actual_segment_los": false,
+      "sourceIsVisible": true,
+      "direct_rir_peak": 0.0,
+      "direct_rir_energy": 0.0,
+      "query_changed_cached_response": false,
+      "direct_render_matches_independent_geometry": true
+    },
+    {
+      "fixture_wall_center_in_export": [
+        0.0,
+        -0.75,
+        0.0
+      ],
+      "fixture_direction_chosen_from_geometry_only": true,
+      "fixture_expected_matches_export": true,
+      "acoustic_mesh_bounds": [
+        [
+          -3.0,
+          -3.000001,
+          -3.000001
+        ],
+        [
+          3.0,
+          3.000001,
+          3.000001
+        ]
+      ],
+      "acoustic_mesh_triangles": 30,
+      "blocked": true,
+      "source": [
+        0.0,
+        -2.0,
+        0.0
+      ],
+      "actual_segment_los": false,
+      "sourceIsVisible": false,
+      "direct_rir_peak": 0.0,
+      "direct_rir_energy": 0.0,
+      "query_changed_cached_response": false,
+      "direct_render_matches_independent_geometry": true
+    },
+    {
+      "fixture_wall_center_in_export": [
+        0.0,
+        -0.75,
+        0.0
+      ],
+      "fixture_direction_chosen_from_geometry_only": true,
+      "fixture_expected_matches_export": true,
+      "acoustic_mesh_bounds": [
+        [
+          -3.0,
+          -3.000001,
+          -3.000001
+        ],
+        [
+          3.0,
+          3.000001,
+          3.000001
+        ]
+      ],
+      "acoustic_mesh_triangles": 30,
+      "blocked": true,
+      "source": [
+        0.0,
+        -2.5,
+        0.0
+      ],
+      "actual_segment_los": false,
+      "sourceIsVisible": false,
+      "direct_rir_peak": 0.0,
+      "direct_rir_energy": 0.0,
+      "query_changed_cached_response": false,
+      "direct_render_matches_independent_geometry": true
+    }
+  ],
+  "wrong_query_cases": 3,
+  "reset_test": {
+    "status": "passed",
+    "sequence": "A(-1m Z), B(+2.5m Z), A, fresh-reset A",
+    "reset_before_every_render": true,
+    "temporalCoherence": false,
+    "direct_only": true,
+    "A_B_A_max_abs_error": 0.0,
+    "scope": "Deterministic direct-only state isolation; indirect Monte-Carlo waveforms need not be bitwise identical"
+  }
+}

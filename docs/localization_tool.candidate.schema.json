@@ -1,0 +1,269 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SAVN-CE AVN21 candidate localization_tool analyze result",
+  "type": "object",
+  "required": [
+    "status",
+    "reason",
+    "limitations"
+  ],
+  "properties": {
+    "status": {
+      "enum": [
+        "ok",
+        "not_ready",
+        "unsupported_input",
+        "unavailable",
+        "error"
+      ]
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "episode_ref",
+        "observation_ids",
+        "support_sample_interval",
+        "cache_hit",
+        "new_physical_observation"
+      ]
+    },
+    "timing": {
+      "type": "object",
+      "required": [
+        "audio_start_s",
+        "audio_end_s",
+        "frame_times_s",
+        "result_available_at_audio_time_s",
+        "result_available_unix_s",
+        "preprocess",
+        "inference",
+        "postprocess"
+      ]
+    },
+    "input_format": {
+      "type": "object",
+      "required": [
+        "channels",
+        "channel_order",
+        "normalization",
+        "coordinate_frame",
+        "sample_rate_hz",
+        "model_sample_rate_hz",
+        "model_coordinate_frame",
+        "resampling"
+      ],
+      "properties": {
+        "sample_rate_hz": {
+          "const": 16000
+        },
+        "model_sample_rate_hz": {
+          "const": 16000
+        },
+        "model_coordinate_frame": {
+          "const": "listener_anchor"
+        },
+        "normalization": {
+          "const": "SN3D"
+        },
+        "channels": {
+          "const": [
+            "W",
+            "Y",
+            "Z",
+            "X"
+          ]
+        },
+        "resampling": {
+          "type": "null"
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "minItems": 100,
+      "maxItems": 100,
+      "items": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/event"
+        }
+      }
+    },
+    "raw_accdoa": {
+      "type": "array",
+      "minItems": 100,
+      "maxItems": 100,
+      "items": {
+        "type": "array",
+        "minItems": 189,
+        "maxItems": 189,
+        "items": {
+          "type": "number"
+        }
+      }
+    },
+    "pose_refs": {
+      "type": "array",
+      "minItems": 40,
+      "maxItems": 40
+    },
+    "range_m": {
+      "type": "null"
+    },
+    "uncertainty": {
+      "type": "null"
+    },
+    "calibration_status": {
+      "const": "uncalibrated"
+    }
+  },
+  "if": {
+    "properties": {
+      "status": {
+        "const": "ok"
+      }
+    }
+  },
+  "then": {
+    "required": [
+      "provenance",
+      "timing",
+      "input_format",
+      "events",
+      "raw_accdoa",
+      "pose_refs",
+      "range_m",
+      "uncertainty",
+      "calibration_status"
+    ]
+  },
+  "$defs": {
+    "event": {
+      "type": "object",
+      "properties": {
+        "class_id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20
+        },
+        "class_name": {
+          "type": "string"
+        },
+        "track_slot": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 2
+        },
+        "merged_track_slots": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2
+          }
+        },
+        "accdoa": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number"
+          }
+        },
+        "activity_score": {
+          "type": "number"
+        },
+        "activity_threshold": {
+          "const": 0.5
+        },
+        "active": {
+          "const": true
+        },
+        "direction_unit_xyz": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number"
+          }
+        },
+        "direction_unit_habitat_xyz": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number"
+          }
+        },
+        "direction_frame": {
+          "const": "listener_anchor_ambix_xyz"
+        },
+        "azimuth_deg": {
+          "type": "number"
+        },
+        "elevation_deg": {
+          "type": "number"
+        },
+        "pose_ref": {
+          "type": "string"
+        },
+        "range_m": {
+          "type": "null"
+        },
+        "uncertainty": {
+          "type": "null"
+        },
+        "calibration_status": {
+          "const": "uncalibrated"
+        },
+        "orientation_pose_ref": {
+          "type": "string"
+        },
+        "direction_unit_world_ambix_xyz": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      "required": [
+        "class_id",
+        "class_name",
+        "track_slot",
+        "merged_track_slots",
+        "accdoa",
+        "activity_score",
+        "activity_threshold",
+        "active",
+        "direction_unit_xyz",
+        "direction_unit_habitat_xyz",
+        "direction_frame",
+        "azimuth_deg",
+        "elevation_deg",
+        "pose_ref",
+        "range_m",
+        "uncertainty",
+        "calibration_status",
+        "orientation_pose_ref",
+        "direction_unit_world_ambix_xyz"
+      ]
+    }
+  }
+}

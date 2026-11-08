@@ -1,0 +1,28 @@
+{
+  "status": "passed",
+  "steps": 12,
+  "dt_s": 0.25,
+  "motion_profile": "mixed",
+  "translation_m": 1.2442986816167831,
+  "max_native_audio_vs_reference_error": 2.9802322387695312e-08,
+  "max_local_conversion_reference_error": 2.9802322387695312e-08,
+  "temporalCoherence": true,
+  "post_offset_tail_present": true,
+  "original_episodes_modified": false,
+  "limitations": "Verifies existing time-varying RIR overlap-add implementation and local coordinate transport, not independent physical ground truth for reverb under receiver motion",
+  "source_schedule": "in-memory diagnostic only: onset0s offset1s; original Episode/WAV association unchanged",
+  "actions": [
+    "turn_left",
+    "turn_left",
+    "move_forward",
+    "turn_right",
+    "move_forward",
+    "turn_right",
+    "turn_left",
+    "move_forward",
+    "turn_right",
+    "move_forward",
+    "turn_left",
+    "move_forward"
+  ]
+}
