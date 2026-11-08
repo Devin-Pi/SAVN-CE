@@ -1,0 +1,36 @@
+["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", "-w", "/workspaces/avn_short1s_shadow_runtime_v1/repository", "avseld_final_test", "python", "-m", "unittest", "discover", "-s", "tests", "-p", "test_synchronous_control.py", "-v"]
+test_codex_prompt_explains_segment_but_old_default_is_unchanged (test_synchronous_control.SynchronousTests) ... ok
+test_collision_and_arrival_interrupt (test_synchronous_control.SynchronousTests) ... ok
+test_forward_guard_interrupts_before_next_primitive (test_synchronous_control.SynchronousTests) ... ok
+test_full_period_latest_pose_and_frozen_wait (test_synchronous_control.SynchronousTests) ... ok
+test_initial_unsafe_forward_is_rejected (test_synchronous_control.SynchronousTests) ... ok
+test_motion_during_model_request_fails_closed (test_synchronous_control.SynchronousTests) ... ok
+test_old_observation_and_api_failure_execute_nothing (test_synchronous_control.SynchronousTests) ... ok
+test_partial_final_budget (test_synchronous_control.SynchronousTests) ... ok
+test_stop_is_immediate_without_time_or_pose_advance (test_synchronous_control.SynchronousTests) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.016s
+
+OK
+
+["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", "-w", "/workspaces/avn_short1s_shadow_runtime_v1/repository", "avseld_final_test", "python", "-m", "unittest", "discover", "-s", "tests", "-p", "test_*localization.py", "-v"]
+test_acquisition_anchor_and_no_future (test_candidate_localization.CandidateFrames) ... ok
+test_identity_all_axes (test_candidate_localization.CandidateFrames) ... ok
+test_invalid_pose_rejected (test_candidate_localization.CandidateFrames) ... ok
+test_native16k_only (test_candidate_localization.CandidateFrames) ... ok
+test_yaw_sign_energy_and_roundtrip (test_candidate_localization.CandidateFrames) ... ok
+test_contiguous_time_overlap_cache_and_pose (test_dsf_localization.TestLocalization) ... ok
+test_decoder_axis_activity_nan_and_duplicate_rules (test_dsf_localization.TestLocalization) ... ok
+test_format_and_references (test_dsf_localization.TestLocalization) ... ok
+test_responses_roundtrip_registration_and_tool_result (test_dsf_localization.TestLocalization) ... ok
+test_unavailable_worker (test_dsf_localization.TestLocalization) ... ok
+test_worker_rejects_bad_samples_before_inference (test_dsf_localization.TestLocalization) ... ok
+test_episode_reset_removes_history (test_short_localization.ShortTool) ... ok
+test_warmup_current_step_cache_and_no_future (test_short_localization.ShortTool) ... ok
+test_wrong_rate_and_shape_rejected (test_short_localization.ShortTool) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 0.132s
+
+OK

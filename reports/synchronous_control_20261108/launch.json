@@ -1,0 +1,35 @@
+{
+  "pid": 1716895,
+  "command": [
+    "python3",
+    "-u",
+    "scripts/candidate_codex_shadow.py",
+    "--profile",
+    "avn_foa_short1s",
+    "--decision-period-s",
+    "1",
+    "--output",
+    "outputs/avn_sync1s_shadow_1000000008_codex_seed7_64_20261108",
+    "--sim-workdir",
+    "/workspace/SAVN-CE/outputs/avn_candidate_shadow_worktree",
+    "--inputs",
+    "/media/4tbssd/00_PROJECT_CODE/SAVN-CE/outputs/avn_candidate_shadow_worktree/outputs/codex_actor_inputs_20261108",
+    "--episode-id",
+    "1000000008",
+    "--steps",
+    "64",
+    "--seed",
+    "7"
+  ],
+  "started_utc": "2026-11-08T11:19:10.411139+00:00",
+  "source_sha256": {
+    "agent_episode/synchronous_control.py": "be3a3db5966c048eea2208ab82301ea84375463587adb7b5fd4a5ba221769736",
+    "agent_episode/codex_backend.py": "5c789fe90464c03182f844e8e239e7d94bb70a1e891c16aff340ba200596974f",
+    "agent_episode/environment.py": "95a13677056870dc062840e717e051b8171e0a42b76d2ee6ed193683b1767726",
+    "agent_episode/serve.py": "333487d1cea4a47ee1deaf5ab0397fa2e1ed9a037c30f83e24c41523c6ffbcdf",
+    "scripts/candidate_codex_shadow.py": "ade1d9f4c37b5b3cfc900637e1f42e771adfcc2fb5affcb4b832987e8a151f52",
+    "scripts/check_candidate_shadow.py": "66600abaa8ca62cf0c38b4ac7a60a29e07822125cb6e25f3662e046c34999e25",
+    "tests/test_synchronous_control.py": "4f4479111612049860c230c323d5e95c932e1ecf24f7b9d4e37189ae7e73cb7d"
+  },
+  "shadow_only": true
+}

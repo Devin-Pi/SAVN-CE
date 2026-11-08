@@ -1,0 +1,42 @@
+{
+  "status": "passed",
+  "unit_tests_passed": 23,
+  "source_commit": "9b06499",
+  "source_snapshot_verified": true,
+  "live_state_checked_before_and_after_all_decisions": true,
+  "shadow_not_used_by_agent": true,
+  "native_step_budget": 64,
+  "synchronous_control": {
+    "status": "passed",
+    "decision_count": 17,
+    "frozen_during_all_decisions": true,
+    "segment_duration_s": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      0.25,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      0.75
+    ],
+    "segment_end_reasons": {
+      "period_complete": 13,
+      "collision_or_blockage": 2,
+      "forward_depth_guard": 1,
+      "step_budget": 1
+    },
+    "native_step_s": 0.25,
+    "nominal_decision_period_s": 1
+  },
+  "video_decode_passed": true
+}
