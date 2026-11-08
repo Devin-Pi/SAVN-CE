@@ -1,0 +1,9 @@
+{
+  "mode": "sustained",
+  "official_onset_s": 2,
+  "official_offset_s": 8,
+  "runtime_onset_s": 2,
+  "runtime_offset_s": 18,
+  "source_loop": "existing native sample-index wrap; waveform and internal silence unchanged",
+  "episode_modified": false
+}

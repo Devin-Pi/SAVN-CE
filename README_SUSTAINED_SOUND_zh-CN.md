@@ -4,6 +4,8 @@
 
 新增`--sound-schedule sustained`，保留官方起声时刻，只把运行时停止时刻延后到本次预算的音频末尾之后。64个0.25秒step对应的运行时排程为2–18秒，覆盖最长16.25秒的导出音频。默认`episode`仍严格使用2–8秒。
 
+已完成云端对照：9秒后29/29个采集窗口仍有声音，最终距目标0.626m，但4次STOP提议均被原门控拒绝。[完整结果与停止诊断](reports/sustained_sound_20261108/README_zh-CN.md)。
+
 该条件不改原始`.json.gz`、物体—声音关联、音源WAV、模型、场景资产或播放增益。沿用原生采样索引循环和空间卷积，不剪除源WAV内部静音，不把源信号替换成恒幅声。`navigation/sound_schedule.json`和`foa_shadow/sound_schedule.json`记录官方及运行时排程；私有评估保留原始Episode并按运行时排程计分，不把额外播放时段误标成静音误报。
 
 ## 云端命令

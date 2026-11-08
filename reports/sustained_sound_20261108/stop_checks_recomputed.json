@@ -1,0 +1,129 @@
+{
+  "note": "Post-run recomputation using saved Agent-visible arrays and logged passive fits only; no target truth or rendering",
+  "stops": [
+    {
+      "observation_id": "obs_0028",
+      "selected": "front",
+      "unique_direction": false,
+      "far_hypotheses_rejected": true,
+      "recomputed_arrival": {
+        "ready": false,
+        "depth_observation_id": "obs_0028",
+        "source": "passive",
+        "checks": {
+          "fresh_passive_estimate": true,
+          "entire_range_interval_near": true,
+          "visible_depth_does_not_block_interval": true,
+          "surface_corroborates_passive_range": false
+        },
+        "age_steps": 0,
+        "estimated_upper_horizontal_range_m": 0.10000000000000021,
+        "depth_clearance_m": [
+          4.558574975390012,
+          4.558574975390012
+        ],
+        "supporting_observation_ids": [
+          "obs_0028:audio",
+          "obs_0015:audio",
+          "obs_0014:audio",
+          "obs_0013:audio",
+          "obs_0012:audio"
+        ]
+      }
+    },
+    {
+      "observation_id": "obs_0036",
+      "selected": "back",
+      "unique_direction": true,
+      "far_hypotheses_rejected": true,
+      "recomputed_arrival": {
+        "ready": false,
+        "depth_observation_id": "obs_0036",
+        "source": "passive",
+        "checks": {
+          "fresh_passive_estimate": true,
+          "entire_range_interval_near": false,
+          "visible_depth_does_not_block_interval": false,
+          "surface_corroborates_passive_range": false
+        },
+        "age_steps": 0,
+        "estimated_upper_horizontal_range_m": 1.1,
+        "depth_clearance_m": [
+          null,
+          null
+        ],
+        "supporting_observation_ids": [
+          "obs_0036:audio",
+          "obs_0031:audio",
+          "obs_0030:audio",
+          "obs_0029:audio",
+          "obs_0028:audio",
+          "obs_0015:audio",
+          "obs_0014:audio",
+          "obs_0013:audio"
+        ]
+      }
+    },
+    {
+      "observation_id": "obs_0044",
+      "selected": "front",
+      "unique_direction": false,
+      "far_hypotheses_rejected": true,
+      "recomputed_arrival": {
+        "ready": false,
+        "depth_observation_id": "obs_0044",
+        "source": "passive",
+        "checks": {
+          "fresh_passive_estimate": true,
+          "entire_range_interval_near": true,
+          "visible_depth_does_not_block_interval": true,
+          "surface_corroborates_passive_range": false
+        },
+        "age_steps": 0,
+        "estimated_upper_horizontal_range_m": 0.09999999999999994,
+        "depth_clearance_m": [
+          3.0297018149931794,
+          3.0297018149931794
+        ],
+        "supporting_observation_ids": [
+          "obs_0044:audio",
+          "obs_0031:audio",
+          "obs_0030:audio",
+          "obs_0029:audio",
+          "obs_0028:audio"
+        ]
+      }
+    },
+    {
+      "observation_id": "obs_0052",
+      "selected": "back",
+      "unique_direction": true,
+      "far_hypotheses_rejected": true,
+      "recomputed_arrival": {
+        "ready": false,
+        "depth_observation_id": "obs_0052",
+        "source": "passive",
+        "checks": {
+          "fresh_passive_estimate": true,
+          "entire_range_interval_near": false,
+          "visible_depth_does_not_block_interval": false,
+          "surface_corroborates_passive_range": false
+        },
+        "age_steps": 0,
+        "estimated_upper_horizontal_range_m": 0.9000000000000001,
+        "depth_clearance_m": [
+          null,
+          null
+        ],
+        "supporting_observation_ids": [
+          "obs_0052:audio",
+          "obs_0046:audio",
+          "obs_0044:audio",
+          "obs_0031:audio",
+          "obs_0030:audio",
+          "obs_0029:audio"
+        ]
+      }
+    }
+  ]
+}

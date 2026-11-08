@@ -1,0 +1,37 @@
+["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", "-w", "/workspaces/avn_short1s_shadow_runtime_v1/repository", "avseld_final_test", "python", "-m", "unittest", "discover", "-s", "tests", "-p", "test_sound_schedule.py"]
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.000s
+
+OK
+
+["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", "-w", "/workspaces/avn_short1s_shadow_runtime_v1/repository", "avseld_final_test", "python", "-m", "unittest", "discover", "-s", "tests", "-p", "test_synchronous_control.py"]
+.........
+----------------------------------------------------------------------
+Ran 9 tests in 0.007s
+
+OK
+
+["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", "-w", "/workspaces/avn_short1s_shadow_runtime_v1/repository", "avseld_final_test", "python", "-m", "unittest", "discover", "-s", "tests", "-p", "test_stationary_control.py"]
+......
+----------------------------------------------------------------------
+Ran 6 tests in 0.003s
+
+OK
+
+["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", "-w", "/workspaces/avn_short1s_shadow_runtime_v1/repository", "avseld_final_test", "python", "-m", "unittest", "discover", "-s", "tests", "-p", "test_*localization.py"]
+..............
+----------------------------------------------------------------------
+Ran 14 tests in 0.129s
+
+OK
+
+["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", "-w", "/workspace/SAVN-CE/outputs/avn_candidate_shadow_worktree", "savnce_dev", "python", "-m", "unittest", "discover", "-s", "tests", "-p", "test_stationary_audio.py"]
+Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
+Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
+See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
+..
+----------------------------------------------------------------------
+Ran 2 tests in 0.033s
+
+OK

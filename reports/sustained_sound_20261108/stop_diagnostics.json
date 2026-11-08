@@ -1,0 +1,133 @@
+{
+  "status_counts": {
+    "accepted": 8,
+    "stop_vetoed": 4
+  },
+  "stops": [
+    {
+      "observation_id": "obs_0028",
+      "reason": "Both valid multi-view acoustic fits place the emitter about 0.1 m away, supporting arrival despite front/back ambiguity.",
+      "latest_fit_selection": "front",
+      "arrival_present": false,
+      "failed_arrival_checks": [],
+      "fits": {
+        "front": {
+          "valid": true,
+          "estimated_horizontal_range_m": 0.1,
+          "plausible_range_m": [
+            0.1,
+            0.1
+          ],
+          "angular_fit_error_deg": 9.72004263754713,
+          "best_far_fit_error_deg": 38.34740972260434,
+          "support_count": 5
+        },
+        "back": {
+          "valid": true,
+          "estimated_horizontal_range_m": 0.1,
+          "plausible_range_m": [
+            0.1,
+            0.1
+          ],
+          "angular_fit_error_deg": 11.500946514657198,
+          "best_far_fit_error_deg": 40.24922359499622,
+          "support_count": 5
+        }
+      }
+    },
+    {
+      "observation_id": "obs_0036",
+      "reason": "Passive multi-view back fit is valid with estimated range 0.9 m (plausible 0.9\u20131.1 m), indicating the emitter is within the 1 m stopping threshold.",
+      "latest_fit_selection": "back",
+      "arrival_present": false,
+      "failed_arrival_checks": [],
+      "fits": {
+        "front": {
+          "valid": false,
+          "estimated_horizontal_range_m": 0.1,
+          "plausible_range_m": [
+            0.1,
+            15.0
+          ],
+          "angular_fit_error_deg": 25.731037660765807,
+          "best_far_fit_error_deg": 27.559308056845346,
+          "support_count": 5
+        },
+        "back": {
+          "valid": true,
+          "estimated_horizontal_range_m": 0.9,
+          "plausible_range_m": [
+            0.9,
+            1.1
+          ],
+          "angular_fit_error_deg": 7.319709385200831,
+          "best_far_fit_error_deg": 27.560312102822675,
+          "support_count": 8
+        }
+      }
+    },
+    {
+      "observation_id": "obs_0044",
+      "reason": "Both valid multi-view acoustic fits place the emitter about 0.1 m away and fit substantially better than distant sources, supporting arrival within 1 m.",
+      "latest_fit_selection": "front",
+      "arrival_present": false,
+      "failed_arrival_checks": [],
+      "fits": {
+        "front": {
+          "valid": true,
+          "estimated_horizontal_range_m": 0.1,
+          "plausible_range_m": [
+            0.1,
+            0.1
+          ],
+          "angular_fit_error_deg": 9.892975662181144,
+          "best_far_fit_error_deg": 39.68808734001119,
+          "support_count": 5
+        },
+        "back": {
+          "valid": true,
+          "estimated_horizontal_range_m": 0.1,
+          "plausible_range_m": [
+            0.1,
+            0.1
+          ],
+          "angular_fit_error_deg": 11.669091595209265,
+          "best_far_fit_error_deg": 40.24922359499622,
+          "support_count": 5
+        }
+      }
+    },
+    {
+      "observation_id": "obs_0052",
+      "reason": "The valid multi-view back-bearing fit estimates the emitter 0.7\u20130.9 m away, supporting arrival within 1 m.",
+      "latest_fit_selection": "back",
+      "arrival_present": false,
+      "failed_arrival_checks": [],
+      "fits": {
+        "front": {
+          "valid": false,
+          "estimated_horizontal_range_m": 0.1,
+          "plausible_range_m": [
+            0.1,
+            15.0
+          ],
+          "angular_fit_error_deg": 30.783092700194832,
+          "best_far_fit_error_deg": 33.05053277157629,
+          "support_count": 3
+        },
+        "back": {
+          "valid": true,
+          "estimated_horizontal_range_m": 0.9,
+          "plausible_range_m": [
+            0.7,
+            0.9
+          ],
+          "angular_fit_error_deg": 20.330290401351984,
+          "best_far_fit_error_deg": 33.06085899996271,
+          "support_count": 6
+        }
+      }
+    }
+  ],
+  "note": "Passive sensor-derived estimates only; no target truth used to veto STOP."
+}
