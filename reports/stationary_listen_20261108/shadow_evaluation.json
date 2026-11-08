@@ -1,0 +1,116 @@
+{
+  "status": "passed",
+  "episode_id": "1000000008",
+  "action_count": 64,
+  "movement_steps": 30,
+  "total_native_steps": 64,
+  "listening_steps": 34,
+  "observation_count": 65,
+  "policy_model": "gpt-6.1-sol",
+  "actual_successful_codex_requests": 9,
+  "failed_codex_requests": 0,
+  "pose_and_action_lockstep_verified": true,
+  "shadow_not_sent_to_policy": true,
+  "actor_has_no_scene_assets": true,
+  "candidate_status_counts": {
+    "ok": 8
+  },
+  "unique_successful_anchor_ids": 8,
+  "cached_successful_results": 0,
+  "first_result_audio_time_s": 1.25,
+  "first_and_last_numerically_active_quarter_start_s": [
+    2.0,
+    8.75
+  ],
+  "events_by_class": {
+    "chair": 2,
+    "cabinet": 1
+  },
+  "events_in_latest_one_second_summed_over_calls": 3,
+  "events_on_numerically_quiet_quarter_second_windows": 0,
+  "all_class_conditional_direction": {
+    "count": 3,
+    "mean_error_deg": 6.594815426038478,
+    "within20": 3,
+    "over90": 0
+  },
+  "chair_conditional_direction": {
+    "count": 2,
+    "mean_error_deg": 6.991340351224835,
+    "within20": 2,
+    "over90": 0
+  },
+  "conditional_metric_note": "Fixed-pose 1s inputs, one current250ms output per completed listening phase. Same episode is not independent evidence; not SELD/F20 or Agent success.",
+  "navigation": {
+    "official_episode_id": "1000000008",
+    "initial_distance_m": 3.1130213737487793,
+    "final_distance_m": 1.7715092897415161,
+    "stopped": false,
+    "success_stop_within_1m": false,
+    "movement_steps": 30,
+    "listening_steps": 34,
+    "total_steps": 64,
+    "movement_time_s": 7.5,
+    "listening_time_s": 8.5,
+    "num_actions": 64,
+    "termination": "step_budget",
+    "note": "Evaluator-only ground truth; not sent to policy.",
+    "stop_distance_m": null,
+    "min_geodesic_distance_m": 0.30860573053359985,
+    "first_within_1m_step": 36,
+    "movement_steps_after_first_entry": 14
+  },
+  "checkpoint_sha256": "e8c1539fb72aca7cdf40c40c9d90368dd19bffef93ca7824f00dc1bf52e38a6d",
+  "synchronous_control": {
+    "status": "passed",
+    "decision_count": 8,
+    "frozen_during_all_decisions": true,
+    "segment_duration_s": [
+      1.0,
+      1.0,
+      0.5,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "segment_end_reasons": {
+      "period_complete": 7,
+      "forward_depth_guard": 1
+    },
+    "native_step_s": 0.25,
+    "nominal_decision_period_s": null,
+    "mode": "stationary_listen_v1",
+    "listening_window_s": 1,
+    "complete_stationary_windows": 8,
+    "fixed_pose_for_all_windows": true,
+    "listening_steps": 34,
+    "movement_steps": 30
+  },
+  "model_window_s": 1,
+  "output_update_period_s": null,
+  "source_on_steps": 3,
+  "chair_detected_source_on_steps": 2,
+  "correct_class_and20deg_source_on_steps": 2,
+  "numerical_quiet_steps": 4,
+  "numerical_quiet_steps_with_prediction": 0,
+  "source_schedule_s": [
+    2,
+    8
+  ],
+  "current_step_outputs_verified": true,
+  "chair_source_on_conditional_direction": {
+    "count": 2,
+    "mean_error_deg": 6.991340351224835,
+    "within20": 2,
+    "over90": 0
+  },
+  "unique_current_step_outputs_scored": 8,
+  "cached_duplicate_outputs_excluded": 0,
+  "first_chair_result_audio_time_s": 3.25,
+  "source_onset_to_first_chair_result_s": 1.25,
+  "model_output_duration_s": 0.25,
+  "localization_invocation_mode": "complete stationary windows only, before policy; never exposed",
+  "localization_does_not_mutate_policy_input_verified": true
+}

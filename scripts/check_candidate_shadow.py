@@ -201,6 +201,12 @@ def main():
             first_chair_result_audio_time_s=first_chair,
             source_onset_to_first_chair_result_s=first_chair-onset if first_chair is not None else None,
             actions_committed_before_localization_verified=True)
+        if stationary:
+            report.pop('actions_committed_before_localization_verified')
+            report.update(output_update_period_s=None,model_output_duration_s=.25,
+                localization_invocation_mode='complete stationary windows only, before policy; never exposed',
+                localization_does_not_mutate_policy_input_verified=True,
+                conditional_metric_note='Fixed-pose 1s inputs, one current250ms output per completed listening phase. Same episode is not independent evidence; not SELD/F20 or Agent success.')
         if step_rows:
             with (run/'per_step_localization.csv').open('w',newline='') as f:
                 writer=csv.DictWriter(f,fieldnames=list(step_rows[0]),lineterminator='\n');writer.writeheader();writer.writerows(step_rows)

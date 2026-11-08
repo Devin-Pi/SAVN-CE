@@ -2,6 +2,8 @@
 
 使用`--listen-before-decide-s 1`启用：**动作段结束 → 固定位置和朝向采集1秒新音频 → 汇总观测／旁路定位 → 暂停仿真等待Codex → 执行下一段动作**。启动后也先原地听1秒，再进行第一次决策。原移动采音版与旧逐步模式保留。
 
+已完成云端64步原生验收：30步移动、34步监听、8轮决策；固定姿态、等待冻结及定位隔离检查通过。[实际结果与文件说明](reports/stationary_listen_20261108/README_zh-CN.md)。
+
 ## 真正采音与等待模型
 
 监听阶段由协调器调用`agent_episode.serve`的`listen`请求；该请求内部给Habitat注册独立的零位移动作（`move_forward`执行量为0），沿用原生`SAVNCE_Simulator.step()`推进音源采样、卷积缓冲及step时间。它不是STOP，不是重复读取缓存，不用转过去再转回来，也不改原始场景资产或官方Episode。

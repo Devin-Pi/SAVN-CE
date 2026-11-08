@@ -1,0 +1,41 @@
+{
+  "pid": 1739941,
+  "command": [
+    "python3",
+    "-u",
+    "scripts/candidate_codex_shadow.py",
+    "--profile",
+    "avn_foa_short1s",
+    "--decision-period-s",
+    "1",
+    "--listen-before-decide-s",
+    "1",
+    "--output",
+    "outputs/avn_stationary1s_shadow_1000000008_codex_seed7_64_20261108",
+    "--sim-workdir",
+    "/workspace/SAVN-CE/outputs/avn_candidate_shadow_worktree",
+    "--inputs",
+    "/media/4tbssd/00_PROJECT_CODE/SAVN-CE/outputs/avn_candidate_shadow_worktree/outputs/codex_actor_inputs_20261108",
+    "--episode-id",
+    "1000000008",
+    "--steps",
+    "64",
+    "--seed",
+    "7"
+  ],
+  "started_utc": "2026-11-08T12:15:58.445538+00:00",
+  "source_sha256": {
+    "agent_episode/environment.py": "e6712070d60f284f03011d9665b09a411bcd9928b19f2109515b30ca8381dbc0",
+    "agent_episode/serve.py": "012fcc3327176ce7289086c8726da6a0a7d9231193a7541443e7733523005c9f",
+    "agent_episode/rollout_export.py": "9845fada814b7b6f265a845d8046d9d3841215e677d2821bec6e28a84f6a318a",
+    "agent_episode/synchronous_control.py": "b0056c9d7ff1b2ebe0b06f975fa5752c8df3a6f9b92b1cac3f6a6e8b9be81183",
+    "agent_episode/llm_observation.py": "2399e22b44fb17d59561b0fae8e5ed252732624110817ce1f4fd5d02b287b23c",
+    "agent_episode/codex_backend.py": "48756fae0fd08c5652a494e427fe0af22e921ed66a5fb56cbb390f0ec688d46a",
+    "scripts/candidate_codex_shadow.py": "796285167e9d0df8d8167d82889a36dbc8820b34709679c11b51c7b0489a663c",
+    "scripts/check_candidate_shadow.py": "6f1a9b438c032348d514ca7e350b5c024e40253c7a5d9bfb3a2f3ad627a2d255",
+    "tests/test_synchronous_control.py": "fa9d0d68094e400e0d827d2782773ac80f3c23be4ae5df3a5e8e96472df89912",
+    "tests/test_stationary_control.py": "609c74f703801233019df425a43fcade465361fbd2fea0e908b944bde4c80408",
+    "tests/test_stationary_audio.py": "7dafde2fa1738759fddf27ee0b67e46b7f375911d46d00c5c414f3926530d664"
+  },
+  "shadow_only": true
+}

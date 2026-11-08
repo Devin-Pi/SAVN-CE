@@ -1,0 +1,44 @@
+{
+  "status": "passed",
+  "unit_tests_passed": 31,
+  "source_commit": "e0c1f53",
+  "source_snapshot_verified": true,
+  "live_state_checked_before_and_after_all_decisions": true,
+  "shadow_not_used_by_agent": true,
+  "native_step_budget": 64,
+  "synchronous_control": {
+    "status": "passed",
+    "decision_count": 8,
+    "frozen_during_all_decisions": true,
+    "segment_duration_s": [
+      1.0,
+      1.0,
+      0.5,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "segment_end_reasons": {
+      "period_complete": 7,
+      "forward_depth_guard": 1
+    },
+    "native_step_s": 0.25,
+    "nominal_decision_period_s": null,
+    "mode": "stationary_listen_v1",
+    "listening_window_s": 1,
+    "complete_stationary_windows": 8,
+    "fixed_pose_for_all_windows": true,
+    "listening_steps": 34,
+    "movement_steps": 30
+  },
+  "video_decode_passed": true,
+  "postrun_reporting_metadata_corrected": true,
+  "localization_called_only_on_complete_stationary_windows": true,
+  "complete_stationary_windows": 8,
+  "partial_stationary_windows": 1,
+  "movement_steps": 30,
+  "listening_steps": 34,
+  "total_native_steps": 64
+}

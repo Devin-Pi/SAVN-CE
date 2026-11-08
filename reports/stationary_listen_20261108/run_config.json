@@ -1,0 +1,22 @@
+{
+  "episode_id": "1000000008",
+  "episode_file": "data/datasets/savnce_generated/mp3d/v1/train/content/17DRP5sb8fy.json.gz",
+  "seed": 7,
+  "max_steps": 64,
+  "model": "gpt-6.1-sol",
+  "provider_host": "code.ppchat.vip",
+  "auth_mode": "api_key",
+  "policy": "existing evidence policy, no yaw probe",
+  "policy_observations": "primary RGB-D/binaural/pose; existing passive STOP gate",
+  "shadow": "separate FOA env, exact same executed actions, never fed to policy",
+  "input_rate": 16000,
+  "model_window_s": 1,
+  "localization_profile": "avn_foa_short1s",
+  "localization_update_period_s": 0.25,
+  "resolution": 512,
+  "decision_period_s": 1.0,
+  "listen_before_decide_s": 1.0,
+  "control_mode": "stationary_listen_v1",
+  "step_budget_unit": "native .25s steps",
+  "segment_guards": "sensor-only; no localization or target truth"
+}

@@ -1,0 +1,103 @@
+{
+  "status": "ok",
+  "backend": "avn_foa_short1s",
+  "model_variant": "avn_short_context_1s_epoch083",
+  "epoch": 83,
+  "checkpoint_sha256": "e8c1539fb72aca7cdf40c40c9d90368dd19bffef93ca7824f00dc1bf52e38a6d",
+  "source_sha256": {
+    "/workspaces/avn_short1s_shadow_runtime_v1/short_candidate_worker.py": "79a50c851b46ff2deb5dd55aca3594c2d67d16eb462d7c78c20a59ef1a49df7a",
+    "/workspaces/avn_short1s_shadow_runtime_v1/spatial_audio/foa.py": "c1946d34cafaeece3cb22f068b357911b4e0d6869b32cccad0441a83b9a75173",
+    "/workspaces/avn_short_windows_v1_20261108/code_snapshot/avn_foa_sameroom/loader.py": "df0fb98c31c93bb200e57cce02d970cb8a1e62491e38693933c17068bb90c1b1",
+    "/workspaces/avn_short_windows_v1_20261108/code_snapshot/avn_foa_sameroom/infer_finetuned.py": "90eee869d2798023485694ecf02b9b881d88d6884c8de34e41cacdbad49e797d",
+    "/workspaces/avn_short_windows_v1_20261108/code_snapshot/avn_foa_sameroom/short_window.py": "751e301f008ee13245fb37ec5a67e12074f3b6754e68f74a3e7b08b23b79e5a0",
+    "/workspaces/avn_short_windows_v1_20261108/code_snapshot/avn_foa_sameroom/train_short.py": "cb1a89b082bef6749e8f439fde029e4bac9e26040d89aa1fd923407058d7580e",
+    "/workspaces/dsf_localization_runtime_v1/models/audio_encoder.py": "d9b7ed9ee67d912204020c9fd01f30a4def37266f488237dcca1f44fd20b6776",
+    "/workspaces/dsf_localization_runtime_v1/utils/extract_IV.py": "f286a301f74597e5f2bf4269d414629862d9c464bb07db2dd573664b28352abc",
+    "/workspaces/dsf_localization_runtime_v1/utils/stft.py": "20b9d2fe51b1b093bebe74847c8c7bd587814dc089a456686aa91668ce6377d0",
+    "/workspaces/dsf_localization_runtime_v1/dsf_decode.py": "a1381049261f913e3992560c551df54954967aea76107c31a99e91ab2686541a"
+  },
+  "conversion_contract_version": "savnce-rlr-foa-1.0",
+  "class_names": [
+    "chair",
+    "table",
+    "picture",
+    "cabinet",
+    "cushion",
+    "sofa",
+    "bed",
+    "chest_of_drawers",
+    "plant",
+    "sink",
+    "toilet",
+    "stool",
+    "towel",
+    "tv_monitor",
+    "shower",
+    "bathtub",
+    "counter",
+    "fireplace",
+    "gym_equipment",
+    "seating",
+    "clothes"
+  ],
+  "tracks": 3,
+  "model_sample_rate_hz": 16000,
+  "window_s": 1,
+  "output_update_period_s": 0.25,
+  "output_scope": "current last250ms only",
+  "feature_shape": [
+    1,
+    7,
+    160,
+    128
+  ],
+  "raw_sequence_shape": [
+    1,
+    10,
+    189
+  ],
+  "output_shape": [
+    1,
+    1,
+    189
+  ],
+  "frontend": {
+    "sample_rate_hz": 16000,
+    "n_fft": 512,
+    "win_length": 342,
+    "hop_length": 100,
+    "n_mels": 128,
+    "fmax": 8000
+  },
+  "strict_load": {
+    "missing": [],
+    "unexpected": []
+  },
+  "normalization": "ACN/SN3D waveform gain preserved; original feature time mean/std; no scaler/resampling",
+  "coordinate_profile": "entire observed1s world FOA rotated once into latest observed listener frame",
+  "torch": "2.1.0+cu118",
+  "gpu": "NVIDIA GeForce RTX 3090",
+  "tool": "localization_tool",
+  "input_format": {
+    "channels": [
+      "W",
+      "Y",
+      "Z",
+      "X"
+    ],
+    "channel_order": "ACN",
+    "ambisonic_order": 1,
+    "normalization": "SN3D",
+    "coordinate_frame": "habitat_world",
+    "ambix_positive_axes_in_habitat": {
+      "X": "-Z",
+      "Y": "-X",
+      "Z": "+Y"
+    }
+  },
+  "limitations": [
+    "21 closed sound classes; uncalibrated ACCDOA activity; no range or object instance.",
+    "Latest observed1s context, only current250ms predicted; overlapping context is not independent evidence.",
+    "Shared world-to-listener anchor conversion; current online/motion performance is under shadow evaluation."
+  ]
+}

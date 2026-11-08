@@ -1,0 +1,9 @@
+observation_id,support_ids,audio_start_s,audio_end_s,fixed_pose_verified,full_second_foa_rms,latest_quarter_foa_rms,binaural_1s_rms_l,binaural_1s_rms_r,source_on_latest_quarter_evaluation_only,classes,chair_angle_deg_evaluation_only
+obs_0004,obs_0001;obs_0002;obs_0003;obs_0004,0.25,1.25,True,0.0,0.0,0.0,0.0,False,,
+obs_0012,obs_0009;obs_0010;obs_0011;obs_0012,2.25,3.25,True,0.008640094058349519,0.0017769911792129278,0.022457314,0.018167348,True,chair,6.78061266204787
+obs_0020,obs_0017;obs_0018;obs_0019;obs_0020,4.25,5.25,True,0.003353328027133338,0.0008218827424570918,0.008748737,0.006241863,True,chair,7.202068040401799
+obs_0026,obs_0023;obs_0024;obs_0025;obs_0026,5.75,6.75,True,0.01620318251074082,0.001395033672451973,0.045154817,0.031864817,True,cabinet,
+obs_0034,obs_0031;obs_0032;obs_0033;obs_0034,7.75,8.75,True,0.0019787520845662393,8.637703103886452e-06,0.003740269,0.003981343,False,,
+obs_0042,obs_0039;obs_0040;obs_0041;obs_0042,9.75,10.75,True,0.0,0.0,0.0,0.0,False,,
+obs_0050,obs_0047;obs_0048;obs_0049;obs_0050,11.75,12.75,True,0.0,0.0,0.0,0.0,False,,
+obs_0058,obs_0055;obs_0056;obs_0057;obs_0058,13.75,14.75,True,0.0,0.0,0.0,0.0,False,,

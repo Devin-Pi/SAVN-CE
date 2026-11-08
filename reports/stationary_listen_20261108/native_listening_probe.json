@@ -1,0 +1,94 @@
+{
+  "status": "passed",
+  "unchanged_pose": true,
+  "native_time_and_source_samples_advance": true,
+  "steps": [
+    {
+      "step": 1,
+      "time_s": 0.25,
+      "rms": 0.0,
+      "sha256": "d7d1d83cb32a25346ee95691e704f1fdb28addd33d8cd7e523a6b6dab4c2f2e7"
+    },
+    {
+      "step": 2,
+      "time_s": 0.5,
+      "rms": 0.0,
+      "sha256": "d7d1d83cb32a25346ee95691e704f1fdb28addd33d8cd7e523a6b6dab4c2f2e7"
+    },
+    {
+      "step": 3,
+      "time_s": 0.75,
+      "rms": 0.0,
+      "sha256": "d7d1d83cb32a25346ee95691e704f1fdb28addd33d8cd7e523a6b6dab4c2f2e7"
+    },
+    {
+      "step": 4,
+      "time_s": 1.0,
+      "rms": 0.0,
+      "sha256": "d7d1d83cb32a25346ee95691e704f1fdb28addd33d8cd7e523a6b6dab4c2f2e7"
+    },
+    {
+      "step": 5,
+      "time_s": 1.25,
+      "rms": 0.0,
+      "sha256": "d7d1d83cb32a25346ee95691e704f1fdb28addd33d8cd7e523a6b6dab4c2f2e7"
+    },
+    {
+      "step": 6,
+      "time_s": 1.5,
+      "rms": 0.0,
+      "sha256": "d7d1d83cb32a25346ee95691e704f1fdb28addd33d8cd7e523a6b6dab4c2f2e7"
+    },
+    {
+      "step": 7,
+      "time_s": 1.75,
+      "rms": 0.0,
+      "sha256": "d7d1d83cb32a25346ee95691e704f1fdb28addd33d8cd7e523a6b6dab4c2f2e7"
+    },
+    {
+      "step": 8,
+      "time_s": 2.0,
+      "rms": 0.006289457902312279,
+      "sha256": "76e4266c82db06e8f2be3067588c670d65615e60e4e6bef2fc59166beaa1516c"
+    },
+    {
+      "step": 9,
+      "time_s": 2.25,
+      "rms": 0.011361672542989254,
+      "sha256": "072ed9a4382455f214198176f1176b7ebe4415fb1ce3d3534f5d682db6a47676"
+    },
+    {
+      "step": 10,
+      "time_s": 2.5,
+      "rms": 0.010451155714690685,
+      "sha256": "b8d3f0857b7e783ab7f1123deb6a85d2c5442b6bcc586cb1cb9b95e1f715e4ef"
+    },
+    {
+      "step": 11,
+      "time_s": 2.75,
+      "rms": 0.006977125070989132,
+      "sha256": "a091a9d8094e4631f5b8c422a40633203adc1a7c2b30c37807a6758fd0d8096f"
+    },
+    {
+      "step": 12,
+      "time_s": 3.0,
+      "rms": 0.0017975234659388661,
+      "sha256": "465ec3434ab63dc8b2b9df3378984530d34928d15254b164cd969dfa04cc3f85"
+    }
+  ],
+  "evaluation": {
+    "official_episode_id": "1000000008",
+    "initial_distance_m": 3.1130213737487793,
+    "final_distance_m": 3.1130213737487793,
+    "stopped": false,
+    "success_stop_within_1m": false,
+    "movement_steps": 0,
+    "listening_steps": 12,
+    "total_steps": 12,
+    "movement_time_s": 0.0,
+    "listening_time_s": 3.0,
+    "num_actions": 12,
+    "termination": "step_budget",
+    "note": "Evaluator-only ground truth; not sent to policy."
+  }
+}
