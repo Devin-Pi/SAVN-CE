@@ -9,15 +9,18 @@ from savnce.datasets.savnce_dataset import SAVNCE_Dataset
 from savnce.tasks.savnce_task import merge_sim_episode_config
 from savnce.sims.savnce_simulator import SAVNCE_Simulator
 from .foa import audio_format, to_ambix
+from .sound_schedule import resolve_sound_schedule
 
 ACTIONS={0:'stop',1:'move_forward',2:'turn_left',3:'turn_right'}
 DEFAULT_EPISODES='audit/official_samples/savnce_dataset/mp3d/v1/train/content/17DRP5sb8fy.json.gz'
 
 class OfficialEpisodeEnv:
-    def __init__(self,output,episode_id='410',resolution=256,max_steps=64,seed=7,episodes_path=DEFAULT_EPISODES,private_output=None,*,audio_mode='binaural'):
+    def __init__(self,output,episode_id='410',resolution=256,max_steps=64,seed=7,episodes_path=DEFAULT_EPISODES,private_output=None,*,audio_mode='binaural',sound_schedule='episode'):
         if audio_mode not in ('binaural', 'foa'):
             raise ValueError("audio_mode must be 'binaural' or 'foa'")
         self.audio_mode = audio_mode
+        if sound_schedule not in ('episode','sustained'):raise ValueError('Unknown sound schedule')
+        self.sound_schedule=sound_schedule
         self.audio_key = 'foa_audio' if audio_mode == 'foa' else 'binaural_audio'
         self.output=Path(output)
         if self.output.exists() and any(self.output.iterdir()):raise FileExistsError('Use an empty output directory')
@@ -43,7 +46,11 @@ class OfficialEpisodeEnv:
         c.AUDIO.MIC_TYPE='ambisonics' if self.audio_mode == 'foa' else 'binaural';c.AUDIO.THREADS=4;c.AUDIO.EVERLASTING=False;c.AUDIO.HAS_DISTRACTOR_SOUND=False;c.AUDIO.HAS_NOISE_SOUND=False
         c.AUDIO.SOURCE_SOUND_DIR=str(Path('data/sounds/semantic_splits').resolve())
         assert (Path(c.AUDIO.SOURCE_SOUND_DIR)/self._episode.goals[0].sound_id).is_file()
-        merge_sim_episode_config(c,self._episode);cfg.freeze();self.config=c
+        merge_sim_episode_config(c,self._episode)
+        self.runtime_sound_schedule=resolve_sound_schedule(self.sound_schedule,c.AGENT_0.ONSET,c.AGENT_0.OFFSET,c.STEP_TIME,self.max_steps)
+        c.AGENT_0.ONSET=self.runtime_sound_schedule['runtime_onset_s'];c.AGENT_0.OFFSET=self.runtime_sound_schedule['runtime_offset_s']
+        (self.output/'sound_schedule.json').write_text(json.dumps(self.runtime_sound_schedule,indent=2)+'\n')
+        cfg.freeze();self.config=c
         self.sim=SAVNCE_Simulator(c);self.sim.seed(self.seed);self.sim.reconfigure(c);self._native=self.sim.reset()
         self.dt=c.STEP_TIME;self.sr=c.AUDIO.RIR_SAMPLING_RATE
         if self.audio_mode == 'foa':
@@ -54,6 +61,7 @@ class OfficialEpisodeEnv:
         original=next(e for e in raw['episodes'] if str(e['episode_id'])==self.episode_id)
         source=Path(c.AUDIO.SOURCE_SOUND_DIR)/self._episode.goals[0].sound_id
         truth={'official_episode':original,'episode_file':str(self._episode_path),'episode_file_sha256':hashlib.sha256(self._episode_path.read_bytes()).hexdigest(),'source_wav_sha256':hashlib.sha256(source.read_bytes()).hexdigest(),'runtime_goal_position':self._episode.goals[0].position,'acoustic_source_position':(np.array(self._episode.goals[0].position)+[0,1.5,0]).tolist(),'initial_geodesic_distance':self.initial_distance,'agent_receives_ground_truth':False,'is_author_official_benchmark':self._episode_path==Path(DEFAULT_EPISODES),'association':'official object/sound association; task may be newly generated'}
+        truth['runtime_sound_schedule']=self.runtime_sound_schedule
         (self.private_output/'evaluation_truth.json').write_text(json.dumps(truth,indent=2)+'\n')
         (self.private_output/'resolved_simulator.yaml').write_text(str(c))
         return self.observe()

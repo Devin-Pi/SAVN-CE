@@ -93,6 +93,7 @@ def main():
     p.add_argument('--inputs',type=Path,required=True);p.add_argument('--episode-id',default='1000000008');p.add_argument('--steps',type=int,default=64);p.add_argument('--seed',type=int,default=7)
     p.add_argument('--decision-period-s',type=float,choices=(.25,1.),default=.25,help='1 enables synchronous, guarded segments of up to four native steps')
     p.add_argument('--listen-before-decide-s',type=float,choices=(0.,1.),default=0.,help='Collect four fresh fixed-pose blocks before every decision; counts toward --steps')
+    p.add_argument('--sound-schedule',choices=('episode','sustained'),default='episode',help='sustained preserves onset, extends runtime offset beyond the budget; original episode unchanged')
     p.add_argument('--profile',choices=('avn_foa_candidate','avn_foa_short1s'),default='avn_foa_candidate');a=p.parse_args()
     if a.steps<=0:p.error('steps must be positive')
     if a.listen_before_decide_s and (a.decision_period_s!=1 or a.profile!='avn_foa_short1s'):p.error('Stationary listening requires 1s movement segments and 1s localization')
@@ -104,7 +105,7 @@ def main():
         policy_observations='primary RGB-D/binaural/pose; existing passive STOP gate',shadow='separate FOA env, exact same executed actions, never fed to policy',
         input_rate=16000,model_window_s=1 if a.profile=='avn_foa_short1s' else 10,
         localization_profile=a.profile,localization_update_period_s=.25 if a.profile=='avn_foa_short1s' else 1,resolution=512,
-        decision_period_s=a.decision_period_s,listen_before_decide_s=a.listen_before_decide_s,control_mode='stationary_listen_v1' if a.listen_before_decide_s else ('synchronous_segments_v1' if a.decision_period_s==1 else 'per_native_step'),
+        decision_period_s=a.decision_period_s,listen_before_decide_s=a.listen_before_decide_s,sound_schedule=a.sound_schedule,control_mode='stationary_listen_v1' if a.listen_before_decide_s else ('synchronous_segments_v1' if a.decision_period_s==1 else 'per_native_step'),
         step_budget_unit='native .25s steps',segment_guards='sensor-only; no localization or target truth'),indent=2)+'\n')
     backend=CodexBackend(a.inputs,out/'codex_calls.jsonl');history=deque(maxlen=8);observed=set()
     simcmd=['docker','exec','-i','-e','HABITAT_SIM_LOG=quiet','-e','MAGNUM_LOG=quiet','-w',a.sim_workdir,'savnce_dev','python','-m']
@@ -115,7 +116,7 @@ def main():
         desc=tool.describe();(out/'model.json').write_text(json.dumps(desc,indent=2)+'\n');assert desc['status']=='ok'
         sim=stack.enter_context(jsonl_process(simcmd+['agent_episode.serve','--inline-observations','--finalize-rollout'],out/'primary_simulator.log'))
         shadow=stack.enter_context(jsonl_process(simcmd+['agent_episode.serve','--inline-observations','--finalize-rollout'],out/'shadow_simulator.log'))
-        reset=dict(command='reset',episode_id=a.episode_id,episode_file=EPISODES,resolution=512,seed=a.seed,max_steps=a.steps)
+        reset=dict(command='reset',episode_id=a.episode_id,episode_file=EPISODES,resolution=512,seed=a.seed,max_steps=a.steps,sound_schedule=a.sound_schedule)
         primary=sim(dict(reset,output=str(out/'navigation'),audio_mode='binaural'))['observation']
         foa=shadow(dict(reset,output=str(out/'foa_shadow'),audio_mode='foa'))['observation']
         done=False

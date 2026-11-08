@@ -125,6 +125,12 @@ def main():
     # Offline only. Keep independent from the CLI input directory.
     source=truth['acoustic_source_position'];events_by_class=Counter();angles=[];correct_angles=[];recent=0;numeric_silent=0
     goal=truth['official_episode']['goals'][0];onset,offset=goal['onset'],goal['offset']
+    runtime_schedule=truth.get('runtime_sound_schedule',{})
+    onset=runtime_schedule.get('runtime_onset_s',onset);offset=runtime_schedule.get('runtime_offset_s',offset)
+    if runtime_schedule:
+        assert json.loads((run/'navigation/sound_schedule.json').read_text())==runtime_schedule
+        assert json.loads((run/'foa_shadow/sound_schedule.json').read_text())==runtime_schedule
+        assert hashlib.sha256(Path(truth['episode_file']).read_bytes()).hexdigest()==truth['episode_file_sha256']
     source_on_steps=chair_on_steps=quiet_steps=quiet_alarms=0;source_on_20=0;source_on_angles=[];step_rows=[]
     scored_success=success
     if short:
@@ -189,6 +195,7 @@ def main():
         conditional_metric_note='Offline renderer-truth diagnostic on numerical RMS>1e-7; overlapping predictions counted, not independent samples; not SELD/F20 or Agent success',
         navigation=evaluation,checkpoint_sha256=model['checkpoint_sha256'])
     if cycle_summary:report['synchronous_control']=cycle_summary
+    if runtime_schedule:report['runtime_sound_schedule']=runtime_schedule
     if short:
         first_chair=next((x['output_end_s'] for x in step_rows if x['source_on_evaluation_only'] and 'chair' in x['classes'].split(';')),None)
         report.update(model_window_s=1,output_update_period_s=.25,source_on_steps=source_on_steps,
