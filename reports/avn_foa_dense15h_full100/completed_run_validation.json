@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "epochs": 100,
+  "optimizer_steps": 27000,
+  "configuration_fixed": true,
+  "selected_epoch": 97,
+  "all_epochs_evaluated_in_fp32": true,
+  "test_used_for_selection": false,
+  "original_model_initialized": true
+}

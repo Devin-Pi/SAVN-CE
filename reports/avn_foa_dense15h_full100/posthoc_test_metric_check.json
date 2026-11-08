@@ -1,0 +1,22 @@
+{
+  "status": "passed",
+  "model_reexecuted": false,
+  "diagnostics": {
+    "test": {
+      "silent_clips": 54,
+      "silent_clips_with_false_alarm": 0,
+      "silent_clip_false_alarm_rate": 0.0,
+      "historical_decoder_suppressed_class_frames": 76,
+      "suppressed_class_frames_with_active_ground_truth": 49,
+      "note": "Diagnostic only; decoder/threshold unchanged; no alternate test metric tuning"
+    },
+    "reference_test": {
+      "silent_clips": 36,
+      "silent_clips_with_false_alarm": 0,
+      "silent_clip_false_alarm_rate": 0.0,
+      "historical_decoder_suppressed_class_frames": 80,
+      "suppressed_class_frames_with_active_ground_truth": 2,
+      "note": "Diagnostic only; decoder/threshold unchanged; no alternate test metric tuning"
+    }
+  }
+}
