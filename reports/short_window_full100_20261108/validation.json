@@ -1,0 +1,25 @@
+{
+  "status": "passed",
+  "date": "2026-11-08",
+  "all_three_completed100": true,
+  "test_prediction_metrics_recomputed_exactly": true,
+  "cached_truth_reconnected_to_labels": true,
+  "best_weights_sha256": {
+    "w025": "6803a8e0c35513bc3eb41ee7ace771880e23442beb6228bb388f5d44143bc25b",
+    "w100": "e8c1539fb72aca7cdf40c40c9d90368dd19bffef93ca7824f00dc1bf52e38a6d",
+    "w150": "7bfee7e36dda321bdcfdd70d9cbc672a4a6d91fcfdd69adcb432ce6491ed606b"
+  },
+  "reloaded_checkpoints_finite": true,
+  "reload_spotcheck_activity_agreement": {
+    "w025": 1.0,
+    "w100": 1.0,
+    "w150": 1.0
+  },
+  "full_test_forward_passes_added": 0,
+  "latency_calls_per_model": 100,
+  "original_training_snapshot_unchanged": true,
+  "no_new_training": true,
+  "no_threshold_tuning": true,
+  "no_agent_or_navigation_execution": true,
+  "no_navigation_control": true
+}

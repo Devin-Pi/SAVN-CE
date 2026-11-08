@@ -1,0 +1,74 @@
+{
+  "status": "completed",
+  "episode_id": "1000000008",
+  "runs": {
+    "w025": {
+      "window_s": 0.25,
+      "predictions": 65,
+      "common_step_count": 60,
+      "earliest_result_at_s": 0.25,
+      "source_emission_on_steps": 24,
+      "chair_detected_emission_on_steps": 0,
+      "numerically_audible_steps": 28,
+      "chair_detected_numerically_audible_steps": 0,
+      "numerical_quiet_steps": 32,
+      "numerical_quiet_steps_with_any_prediction": 0,
+      "decoded_class_events": {
+        "gym_equipment": 3,
+        "cabinet": 1
+      },
+      "maximum_chair_score_during_source_on": 0.3334996998310089,
+      "scope": "single previously inspected moving episode replay, not a new held-out online evaluation; numerical RMS is not semantic ground truth"
+    },
+    "w100": {
+      "window_s": 1.0,
+      "predictions": 62,
+      "common_step_count": 60,
+      "earliest_result_at_s": 1.0,
+      "source_emission_on_steps": 24,
+      "chair_detected_emission_on_steps": 16,
+      "numerically_audible_steps": 28,
+      "chair_detected_numerically_audible_steps": 16,
+      "numerical_quiet_steps": 32,
+      "numerical_quiet_steps_with_any_prediction": 1,
+      "decoded_class_events": {
+        "cabinet": 1,
+        "chair": 16,
+        "fireplace": 3,
+        "stool": 1
+      },
+      "maximum_chair_score_during_source_on": 1.0237934589385986,
+      "scope": "single previously inspected moving episode replay, not a new held-out online evaluation; numerical RMS is not semantic ground truth"
+    },
+    "w150": {
+      "window_s": 1.5,
+      "predictions": 60,
+      "common_step_count": 60,
+      "earliest_result_at_s": 1.5,
+      "source_emission_on_steps": 24,
+      "chair_detected_emission_on_steps": 0,
+      "numerically_audible_steps": 28,
+      "chair_detected_numerically_audible_steps": 0,
+      "numerical_quiet_steps": 32,
+      "numerical_quiet_steps_with_any_prediction": 1,
+      "decoded_class_events": {
+        "chair": 1
+      },
+      "maximum_chair_score_during_source_on": 0.00537141552194953,
+      "scope": "single previously inspected moving episode replay, not a new held-out online evaluation; numerical RMS is not semantic ground truth"
+    }
+  },
+  "conversion_contract": "savnce-rlr-foa-1.0",
+  "source_schedule_evaluation_only": [
+    2,
+    8
+  ],
+  "source_category_evaluation_only": "chair",
+  "simulator_executed": false,
+  "LLM_called": false,
+  "actions_changed": false,
+  "navigation_control": false,
+  "original_recording_unchanged": true,
+  "model_inputs": "only already observed world FOA and current observed quaternion",
+  "caveat": "Do not equate this one replay with navigation success or multi-scene online accuracy; no thresholds/checkpoints selected on replay"
+}

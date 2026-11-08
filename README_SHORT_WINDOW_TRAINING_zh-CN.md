@@ -2,6 +2,8 @@
 
 这是完成[离线／在线差异诊断](README_LOCALIZATION_DIAGNOSIS_zh-CN.md)后，按用户新授权启动的独立研究实验。目的：比较每0.25秒更新一次定位时，最近0.25、1、1.5秒的历史上下文是否有帮助。模型不参与导航，原模型、原音频和原标签保留。
 
+**状态更新：三组已完成100轮和最终测试。** 统一指标、各类别、静音、耗时及已有在线录音回放见[完整100轮分析](README_SHORT_WINDOW_FULL100_zh-CN.md)。下文保留实际训练协议与启动记录。
+
 ## 窗口与一步结果
 
 输入窗长与更新间隔是两个参数。三组都预测**当前最后0.25秒**，长窗中更早的真实音频仅作上下文。没有读取窗口结束之后的声音；没有把短音频补成10秒。较长窗需要积累对应历史后才能首次输出。
@@ -70,4 +72,4 @@ python3 scripts/launch_short_windows.py status
 
 SwanLab实际运行链接：[0.25秒](https://swanlab.cn/@rdpi1995/AVN-Localization/runs/avn-short-w025-v1-95e35a3f5a88)、[1秒](https://swanlab.cn/@rdpi1995/AVN-Localization/runs/avn-short-w100-v1-50c20d335ad6)、[1.5秒](https://swanlab.cn/@rdpi1995/AVN-Localization/runs/avn-short-w150-v1-bef15e2f0352)。三组各18条指标序列已由SwanLab API读回并与本地history核对。
 
-本文件说明训练协议，不声称三个短窗权重已完成100轮或在线表现已经改善。启动与监控验证见`reports/short_window_training_20261108/startup_validation.json`。
+启动与监控的历史验证见`reports/short_window_training_20261108/startup_validation.json`；完整100轮最终结果见`reports/short_window_full100_20261108/`。离线指标与单次回放不等于完整在线导航成功。

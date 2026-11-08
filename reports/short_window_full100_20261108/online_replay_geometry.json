@@ -1,0 +1,101 @@
+{
+  "status": "completed",
+  "runs": {
+    "w025": {
+      "source_on_steps": 24,
+      "steps_with_chair": 0,
+      "conditional_current_pose_angle_mean_deg": null,
+      "conditional_current_pose_angle_max_deg": null,
+      "within20deg_steps": 0,
+      "correct_class_and_20deg_step_recall": 0.0,
+      "per_detected_step": []
+    },
+    "w100": {
+      "source_on_steps": 24,
+      "steps_with_chair": 16,
+      "conditional_current_pose_angle_mean_deg": 13.711336278530592,
+      "conditional_current_pose_angle_max_deg": 45.624067806375194,
+      "within20deg_steps": 13,
+      "correct_class_and_20deg_step_recall": 0.5416666666666666,
+      "per_detected_step": [
+        {
+          "observation_id": "obs_0011",
+          "angle_deg": 3.607851299723508
+        },
+        {
+          "observation_id": "obs_0012",
+          "angle_deg": 12.602246737684027
+        },
+        {
+          "observation_id": "obs_0013",
+          "angle_deg": 4.6217487488267945
+        },
+        {
+          "observation_id": "obs_0015",
+          "angle_deg": 9.739834946762038
+        },
+        {
+          "observation_id": "obs_0016",
+          "angle_deg": 6.811613601405544
+        },
+        {
+          "observation_id": "obs_0017",
+          "angle_deg": 5.656469466064813
+        },
+        {
+          "observation_id": "obs_0018",
+          "angle_deg": 4.70838908234143
+        },
+        {
+          "observation_id": "obs_0019",
+          "angle_deg": 17.919913475341314
+        },
+        {
+          "observation_id": "obs_0020",
+          "angle_deg": 13.028346260651407
+        },
+        {
+          "observation_id": "obs_0024",
+          "angle_deg": 14.323182814037233
+        },
+        {
+          "observation_id": "obs_0025",
+          "angle_deg": 45.624067806375194
+        },
+        {
+          "observation_id": "obs_0026",
+          "angle_deg": 27.62575999349164
+        },
+        {
+          "observation_id": "obs_0027",
+          "angle_deg": 20.990432880364352
+        },
+        {
+          "observation_id": "obs_0029",
+          "angle_deg": 15.564705255100446
+        },
+        {
+          "observation_id": "obs_0030",
+          "angle_deg": 9.442817401288275
+        },
+        {
+          "observation_id": "obs_0031",
+          "angle_deg": 7.114000687031451
+        }
+      ]
+    },
+    "w150": {
+      "source_on_steps": 24,
+      "steps_with_chair": 0,
+      "conditional_current_pose_angle_mean_deg": null,
+      "conditional_current_pose_angle_max_deg": null,
+      "within20deg_steps": 0,
+      "correct_class_and_20deg_step_recall": 0.0,
+      "per_detected_step": []
+    }
+  },
+  "scope": "single-episode conditional geometry error and step recall; not official DSF block F20/LE",
+  "truth_used_after_predictions_only": true,
+  "model_inputs_unchanged": true,
+  "no_missing_detection_as_zero_angle": true
+}
