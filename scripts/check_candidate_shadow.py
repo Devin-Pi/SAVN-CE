@@ -1,5 +1,5 @@
 """Post-run audit; privileged truth is read only after both native environments close."""
-import argparse,hashlib,json,math,statistics,subprocess
+import argparse,hashlib,json,math,statistics,subprocess,csv
 from pathlib import Path
 from collections import Counter
 import numpy as np
@@ -69,8 +69,20 @@ def main():
     # Offline only. Keep independent from the CLI input directory.
     source=truth['acoustic_source_position'];events_by_class=Counter();angles=[];correct_angles=[];recent=0;numeric_silent=0
     goal=truth['official_episode']['goals'][0];onset,offset=goal['onset'],goal['offset']
-    source_on_steps=chair_on_steps=quiet_steps=quiet_alarms=0;source_on_20=0;source_on_angles=[]
-    for r in success:
+    source_on_steps=chair_on_steps=quiet_steps=quiet_alarms=0;source_on_20=0;source_on_angles=[];step_rows=[]
+    scored_success=success
+    if short:
+        unique={}
+        for r in success:
+            if r['at'] in unique:
+                previous=unique[r['at']]
+                assert r['provenance']['cache_hit'] and r['raw_accdoa']==previous['raw_accdoa']
+                assert r['provenance']['support_sample_interval']==previous['provenance']['support_sample_interval']
+            else:unique[r['at']]=r
+        scored_success=list(unique.values())
+        assert [r['at'] for r in scored_success]==[r['observation_id'] for r in observed[3:]]
+        assert all(r['status'] in ('ok','not_ready') for r in predictions)
+    for r in scored_success:
         poses={x['observation_id']:x for x in r['pose_refs']}
         if short:
             current=byid[r['at']];on=onset<=current['timestamp_s']<offset;quiet=current['audio_rms']<=1e-7
@@ -90,6 +102,18 @@ def main():
         if short and current_chair_angles:
             source_on_angles.append(min(current_chair_angles))
             if min(current_chair_angles)<=20:source_on_20+=1
+        if short:
+            scores=np.linalg.norm(np.asarray(r['raw_accdoa']).reshape(1,3,3,21),axis=2).max(axis=1)[0]
+            step_rows.append(dict(observation_id=r['at'],step=current['step'],
+                input_start_s=r['timing']['audio_start_s'],input_end_s=r['timing']['audio_end_s'],
+                output_start_s=current['timestamp_s'],output_end_s=r['timing']['audio_end_s'],
+                actual_audio_rms=current['audio_rms'],source_on_evaluation_only=on,numerical_quiet=quiet,
+                classes=';'.join(e['class_name'] for e in r['events'][0]),
+                chair_raw_score=float(scores[0]),max_class_raw_score=float(scores.max()),
+                chair_source_on_angle_deg=min(current_chair_angles) if current_chair_angles else None,
+                action=actions_by_anchor.get(r['at'],{}).get('action'),
+                model_inference_ms=r['timing']['inference']*1000,
+                support_ids=';'.join(r['provenance']['observation_ids'])))
     def stats(values):return dict(count=len(values),mean_error_deg=statistics.mean(values) if values else None,within20=sum(v<=20 for v in values),over90=sum(v>90 for v in values))
     report=dict(status='passed',episode_id='1000000008',action_count=len(nav),movement_steps=len(observed)-1,
         observation_count=len(observed),policy_model='gpt-6.1-sol',actual_successful_codex_requests=len(successful_calls),failed_codex_requests=len(calls)-len(successful_calls),
@@ -102,12 +126,20 @@ def main():
         conditional_metric_note='Offline renderer-truth diagnostic on numerical RMS>1e-7; overlapping predictions counted, not independent samples; not SELD/F20 or Agent success',
         navigation=evaluation,checkpoint_sha256=model['checkpoint_sha256'])
     if short:
+        first_chair=next((x['output_end_s'] for x in step_rows if x['source_on_evaluation_only'] and 'chair' in x['classes'].split(';')),None)
         report.update(model_window_s=1,output_update_period_s=.25,source_on_steps=source_on_steps,
             chair_detected_source_on_steps=chair_on_steps,correct_class_and20deg_source_on_steps=source_on_20,
             numerical_quiet_steps=quiet_steps,numerical_quiet_steps_with_prediction=quiet_alarms,
             source_schedule_s=[onset,offset],current_step_outputs_verified=True,
             chair_source_on_conditional_direction=stats(source_on_angles),
+            unique_current_step_outputs_scored=len(scored_success),
+            cached_duplicate_outputs_excluded=len(success)-len(scored_success),
+            first_chair_result_audio_time_s=first_chair,
+            source_onset_to_first_chair_result_s=first_chair-onset if first_chair is not None else None,
             actions_committed_before_localization_verified=True)
+        if step_rows:
+            with (run/'per_step_localization.csv').open('w',newline='') as f:
+                writer=csv.DictWriter(f,fieldnames=list(step_rows[0]),lineterminator='\n');writer.writeheader();writer.writerows(step_rows)
     (run/'shadow_evaluation.json').write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report))
 

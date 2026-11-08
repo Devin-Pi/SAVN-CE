@@ -1,0 +1,12 @@
+{
+  "mount_destinations": [
+    "/codex_home/config.toml",
+    "/etc/ssl/certs",
+    "/inputs",
+    "/usr/local/bin/codex",
+    "/codex_home/auth.json"
+  ],
+  "all_bind_mounts_readonly": true,
+  "readonly_root": true,
+  "user": "1001:1001"
+}

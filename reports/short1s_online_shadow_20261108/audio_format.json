@@ -1,0 +1,24 @@
+{
+  "encoding": "AmbiX",
+  "conversion_contract_version": "savnce-rlr-foa-1.0",
+  "conversion_module_sha256": "c1946d34cafaeece3cb22f068b357911b4e0d6869b32cccad0441a83b9a75173",
+  "native_layout_scope": "Locally calibrated Habitat-Sim/RLR build only; not a universal Ambisonics world-frame assertion",
+  "ambisonic_order": 1,
+  "channel_order": "ACN",
+  "channels": [
+    "W",
+    "Y",
+    "Z",
+    "X"
+  ],
+  "normalization": "SN3D",
+  "coordinate_frame": "habitat_world",
+  "ambix_positive_axes_in_habitat": {
+    "X": "-Z",
+    "Y": "-X",
+    "Z": "+Y"
+  },
+  "sample_rate_hz": 16000,
+  "window_duration_s": 0.25,
+  "wav_subtype": "FLOAT"
+}

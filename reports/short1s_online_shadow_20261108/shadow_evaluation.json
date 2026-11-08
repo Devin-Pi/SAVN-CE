@@ -1,0 +1,83 @@
+{
+  "status": "passed",
+  "episode_id": "1000000008",
+  "action_count": 64,
+  "movement_steps": 64,
+  "observation_count": 65,
+  "policy_model": "gpt-6.1-sol",
+  "actual_successful_codex_requests": 79,
+  "failed_codex_requests": 0,
+  "pose_and_action_lockstep_verified": true,
+  "shadow_not_sent_to_policy": true,
+  "actor_has_no_scene_assets": true,
+  "candidate_status_counts": {
+    "not_ready": 3,
+    "ok": 62
+  },
+  "unique_successful_anchor_ids": 62,
+  "cached_successful_results": 0,
+  "first_result_audio_time_s": 1.0,
+  "first_and_last_numerically_active_quarter_start_s": [
+    2.0,
+    8.75
+  ],
+  "events_by_class": {
+    "chair": 15,
+    "fireplace": 3,
+    "cabinet": 1
+  },
+  "events_in_latest_one_second_summed_over_calls": 19,
+  "events_on_numerically_quiet_quarter_second_windows": 0,
+  "all_class_conditional_direction": {
+    "count": 19,
+    "mean_error_deg": 7.3423295352694256,
+    "within20": 19,
+    "over90": 0
+  },
+  "chair_conditional_direction": {
+    "count": 15,
+    "mean_error_deg": 6.999092760419678,
+    "within20": 15,
+    "over90": 0
+  },
+  "conditional_metric_note": "Offline renderer-truth diagnostic on numerical RMS>1e-7; overlapping predictions counted, not independent samples; not SELD/F20 or Agent success",
+  "navigation": {
+    "official_episode_id": "1000000008",
+    "initial_distance_m": 3.1130213737487793,
+    "final_distance_m": 1.3660531044006348,
+    "stopped": false,
+    "success_stop_within_1m": false,
+    "movement_steps": 64,
+    "num_actions": 64,
+    "termination": "step_budget",
+    "note": "Evaluator-only ground truth; not sent to policy.",
+    "stop_distance_m": null,
+    "min_geodesic_distance_m": 0.31479325890541077,
+    "first_within_1m_step": 12,
+    "movement_steps_after_first_entry": 52
+  },
+  "checkpoint_sha256": "e8c1539fb72aca7cdf40c40c9d90368dd19bffef93ca7824f00dc1bf52e38a6d",
+  "model_window_s": 1,
+  "output_update_period_s": 0.25,
+  "source_on_steps": 24,
+  "chair_detected_source_on_steps": 15,
+  "correct_class_and20deg_source_on_steps": 15,
+  "numerical_quiet_steps": 34,
+  "numerical_quiet_steps_with_prediction": 0,
+  "source_schedule_s": [
+    2,
+    8
+  ],
+  "current_step_outputs_verified": true,
+  "chair_source_on_conditional_direction": {
+    "count": 15,
+    "mean_error_deg": 6.999092760419678,
+    "within20": 15,
+    "over90": 0
+  },
+  "unique_current_step_outputs_scored": 62,
+  "cached_duplicate_outputs_excluded": 0,
+  "first_chair_result_audio_time_s": 3.0,
+  "source_onset_to_first_chair_result_s": 1.0,
+  "actions_committed_before_localization_verified": true
+}

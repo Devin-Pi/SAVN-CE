@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "calls": 62,
+  "measurement": "synchronized worker preprocess+inference+postprocess; excludes RPC, rendering and LLM",
+  "median_ms": 44.03531923890114,
+  "p95_order_statistic_ms": 53.08269336819649,
+  "max_ms": 1071.3171437382698,
+  "over_250ms": 1,
+  "cold_start_anchor": "obs_0003"
+}

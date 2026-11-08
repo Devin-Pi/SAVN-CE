@@ -1,0 +1,7 @@
+{
+  "status": "completed",
+  "movement_steps": 64,
+  "shadow_used_for_navigation": false,
+  "pose_lockstep_verified": true,
+  "policy_model": "gpt-6.1-sol"
+}

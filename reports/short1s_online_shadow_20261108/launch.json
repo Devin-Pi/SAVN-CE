@@ -1,0 +1,36 @@
+{
+  "pid": 1667795,
+  "command": [
+    "python3",
+    "-u",
+    "scripts/candidate_codex_shadow.py",
+    "--profile",
+    "avn_foa_short1s",
+    "--output",
+    "outputs/avn_short1s_shadow_1000000008_codex_seed7_64_20261108",
+    "--sim-workdir",
+    "/workspace/SAVN-CE/outputs/avn_candidate_shadow_worktree",
+    "--inputs",
+    "/media/4tbssd/00_PROJECT_CODE/SAVN-CE/outputs/avn_candidate_shadow_worktree/outputs/codex_actor_inputs_20261108",
+    "--episode-id",
+    "1000000008",
+    "--steps",
+    "64",
+    "--seed",
+    "7"
+  ],
+  "started_utc": "2026-11-08T09:24:37.997006+00:00",
+  "source_sha256": {
+    "scripts/candidate_codex_shadow.py": "dd05d1a54adc8141dad0f016116500a9c5718a9d1dcbbc819702a330a86b705a",
+    "scripts/check_candidate_shadow.py": "7c2e61f57d0d0edaf598590ebc419b26f65ff37a02a553a7b872ea978b30124c",
+    "agent_episode/localization_tool.py": "6349cc989ca48be6904fc9d365ceacd16670746cf534a50cc6926f8fc499c254",
+    "agent_episode/short_candidate_worker.py": "79a50c851b46ff2deb5dd55aca3594c2d67d16eb462d7c78c20a59ef1a49df7a",
+    "agent_episode/codex_backend.py": "a8f5e5a4ace72f0c7d9d202ee210331de1f064b79371d9ed59d936bc59cf7688",
+    "agent_episode/llm_rollout.py": "838a10289376887251be2f9835f0416c1188cc04ae49f0fb1a55bf46b2765607",
+    "agent_episode/foa.py": "6236ed284f54c0fff5056de9d84135e99975d8fd715b357b021a89f7f6fbdc64",
+    "spatial_audio/foa.py": "c1946d34cafaeece3cb22f068b357911b4e0d6869b32cccad0441a83b9a75173"
+  },
+  "seed_scope": "native simulator/source offset, not remote LLM sampling",
+  "shadow_only": true,
+  "run_name": "avn_short1s_shadow_1000000008_codex_seed7_64_20261108"
+}

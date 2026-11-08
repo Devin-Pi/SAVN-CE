@@ -1,0 +1,26 @@
+{
+  "status": "passed",
+  "checkpoint_sha256": "e8c1539fb72aca7cdf40c40c9d90368dd19bffef93ca7824f00dc1bf52e38a6d",
+  "real_observed_anchor": "obs_0011",
+  "world_input_shape": [
+    16000,
+    4
+  ],
+  "sample_rate_hz": 16000,
+  "feature_shape": [
+    1,
+    7,
+    160,
+    128
+  ],
+  "output_shape": [
+    1,
+    189
+  ],
+  "adapter_vs_frozen_graph_max_abs_error": 0.0,
+  "adapter_vs_retained_replay_max_abs_error": 0.00013196468353271484,
+  "waveform_rescaling": false,
+  "resampling": false,
+  "output_scope": "current250ms only",
+  "truth_used": false
+}

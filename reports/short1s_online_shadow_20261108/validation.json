@@ -1,0 +1,25 @@
+{
+  "status": "passed",
+  "episode_id": "1000000008",
+  "seed": 7,
+  "step_budget": 64,
+  "profile": "avn_foa_short1s",
+  "unit_tests_passed": 14,
+  "adapter_parity_passed": true,
+  "native_pose_action_sync_verified": true,
+  "shadow_isolated_from_agent": true,
+  "launch_source_snapshot_hashes_verified": true,
+  "cloud_live_sources_unchanged_at_completion": 8,
+  "postrun_checker_separately_snapshotted": true,
+  "video_full_decode_passed": true,
+  "local_download_archive_sha256": "ee354f9bea6b4ab9f450e08e6907d6521913c9ad2436b1db3597d3420ca46e40",
+  "local_mp4_sha256_verified": true,
+  "stopped": false,
+  "formal_SELD_F20_evaluation": false,
+  "limitations": [
+    "single episode and one actual LLM trajectory",
+    "conditional direction metrics exclude missed detections",
+    "one cold-start call exceeds 250ms",
+    "local bundle omits raw RGB-D/FOA NPZ; retained in cloud"
+  ]
+}
