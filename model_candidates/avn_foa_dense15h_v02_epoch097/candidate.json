@@ -1,0 +1,110 @@
+{
+  "candidate_id": "avn_foa_dense15h_v02_epoch097",
+  "status": "candidate",
+  "created_date": "2026-11-08",
+  "activated_in_agent": false,
+  "checkpoint_host": "/media/4tbssd/av_seld/workspaces/localization_candidates/avn_foa_dense15h_v02_epoch097/best.pt",
+  "checkpoint_container": "/workspaces/localization_candidates/avn_foa_dense15h_v02_epoch097/best.pt",
+  "checkpoint_sha256": "8bf8cd0e521084f8ca2a685a8e9a12b769ae476ba37880be41bf53f0613c0fc1",
+  "source_training_run": "/media/4tbssd/av_seld/workspaces/avn_foa_dense15h_finetune_v02/run_seed7_full100",
+  "selected_epoch": 97,
+  "completed_epochs": 100,
+  "seed": 7,
+  "initialization": "original 13-class pretrained encoder; new 21-class output; all parameters unfrozen from step1",
+  "input": {
+    "sample_rate_hz": 16000,
+    "channels": 4,
+    "channel_order": [
+      "W",
+      "Y",
+      "Z",
+      "X"
+    ],
+    "format": "ACN/SN3D AmbiX, listener local",
+    "duration_s": 10,
+    "coordinate_axes": {
+      "x": "forward",
+      "y": "left",
+      "z": "up"
+    }
+  },
+  "output": {
+    "classes": [
+      "chair",
+      "table",
+      "picture",
+      "cabinet",
+      "cushion",
+      "sofa",
+      "bed",
+      "chest_of_drawers",
+      "plant",
+      "sink",
+      "toilet",
+      "stool",
+      "towel",
+      "tv_monitor",
+      "shower",
+      "bathtub",
+      "counter",
+      "fireplace",
+      "gym_equipment",
+      "seating",
+      "clothes"
+    ],
+    "representation": "three-track ACCDOA XYZ, listener local",
+    "frames": 100,
+    "label_rate_hz": 10,
+    "activity_threshold": 0.5,
+    "merge_angle_deg": 15,
+    "distance_prediction": false,
+    "confidence_calibrated": false
+  },
+  "primary_evaluation": {
+    "protocol": "Dense15h high-activity known-sound/unseen-scene same-room LOS static single source",
+    "records": 540,
+    "metrics": {
+      "ER": 0.024897119341563786,
+      "F20": 0.9822103618130246,
+      "LE": 4.9149184289620775,
+      "LR": 0.9954451345755693,
+      "SELD": 0.018636681334023124
+    }
+  },
+  "transfer_diagnostic": {
+    "protocol": "original sparse v0.1",
+    "records": 360,
+    "metrics": {
+      "ER": 1.1282679738562091,
+      "F20": 0.026098468814754305,
+      "LE": 131.93524358031613,
+      "LR": 0.03351110581502738,
+      "SELD": 0.9504079936681571
+    },
+    "whole_silent_clip_false_alarms": 0,
+    "whole_silent_clips": 36,
+    "positive_clip_valid_background_false_alarm_frames": 760,
+    "positive_clip_valid_background_frames": 20225
+  },
+  "primary_silent_clip_false_alarms": 0,
+  "primary_silent_clips": 54,
+  "verified": [
+    "100 epochs / 27000 updates",
+    "validation-only checkpoint selection",
+    "all saved predictions agree with official DSF metrics",
+    "hash-matched checkpoint archive"
+  ],
+  "unverified": [
+    "online AVN agent",
+    "0.5/1/2 second windows",
+    "unheard independent source recordings",
+    "NLOS/cross-room",
+    "multiple simultaneous sources",
+    "moving source",
+    "distance/STOP decisions"
+  ],
+  "deployment_note": "Candidate only. No Agent configuration or default checkpoint changed. Sparse/short/intermittent input shows substantial transfer degradation.",
+  "evaluation_report": "reports/avn_foa_dense15h_full100/ANALYSIS_zh-CN.md",
+  "training_source_commit": "e4597aa77952df7c07510d294c9a78858e5926a9",
+  "analysis_commit": "3432b62"
+}
