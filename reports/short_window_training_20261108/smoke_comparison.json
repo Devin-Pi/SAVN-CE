@@ -1,0 +1,95 @@
+{
+  "status": "passed",
+  "all_three_initial_models_identical": true,
+  "all_three_initial_heads_identical": true,
+  "all_three_encoder_gradients_and_updates_passed": true,
+  "results": [
+    {
+      "status": "passed",
+      "loss": 0.042296506464481354,
+      "gradient_norm": 0.35161396861076355,
+      "peak_mib": 902.4248046875,
+      "parameter_changes": {
+        "audio_proj.weight": 1.0013580322265625e-05,
+        "AVfnn_list.2.weight": 0.00010000169277191162
+      },
+      "feature_shape": [
+        16,
+        7,
+        40,
+        128
+      ],
+      "sequence_shape": [
+        16,
+        3,
+        189
+      ],
+      "step_shape": [
+        16,
+        1,
+        189
+      ],
+      "initial_model_state_sha256": "c7a842e10cd8b10cb43624a37b83024eef2eb2943bf2b652aa5cb35f1715bb4a",
+      "initial_head_sha256": "18c41011a108ae7a5ee6bf7b61becc71aaeebd016dc1e504680a2cf6b0db389b",
+      "evaluation_4hz_and_original100ms_smoke_passed": true
+    },
+    {
+      "status": "passed",
+      "loss": 0.040206339210271835,
+      "gradient_norm": 0.373207151889801,
+      "peak_mib": 2013.314453125,
+      "parameter_changes": {
+        "audio_proj.weight": 1.0013580322265625e-05,
+        "AVfnn_list.2.weight": 0.00010000169277191162
+      },
+      "feature_shape": [
+        16,
+        7,
+        160,
+        128
+      ],
+      "sequence_shape": [
+        16,
+        10,
+        189
+      ],
+      "step_shape": [
+        16,
+        1,
+        189
+      ],
+      "initial_model_state_sha256": "c7a842e10cd8b10cb43624a37b83024eef2eb2943bf2b652aa5cb35f1715bb4a",
+      "initial_head_sha256": "18c41011a108ae7a5ee6bf7b61becc71aaeebd016dc1e504680a2cf6b0db389b",
+      "evaluation_4hz_and_original100ms_smoke_passed": true
+    },
+    {
+      "status": "passed",
+      "loss": 0.027220752090215683,
+      "gradient_norm": 8.17955207824707,
+      "peak_mib": 2761.1845703125,
+      "parameter_changes": {
+        "audio_proj.weight": 1.0013580322265625e-05,
+        "AVfnn_list.2.weight": 0.00010000169277191162
+      },
+      "feature_shape": [
+        16,
+        7,
+        240,
+        128
+      ],
+      "sequence_shape": [
+        16,
+        15,
+        189
+      ],
+      "step_shape": [
+        16,
+        1,
+        189
+      ],
+      "initial_model_state_sha256": "c7a842e10cd8b10cb43624a37b83024eef2eb2943bf2b652aa5cb35f1715bb4a",
+      "initial_head_sha256": "18c41011a108ae7a5ee6bf7b61becc71aaeebd016dc1e504680a2cf6b0db389b",
+      "evaluation_4hz_and_original100ms_smoke_passed": true
+    }
+  ]
+}

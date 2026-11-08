@@ -1,0 +1,162 @@
+{
+  "status": "running_startup_verified",
+  "checked_at_utc": "2026-11-08T04:08:32.253705+00:00",
+  "label_cache": {
+    "status": "completed",
+    "version": "avn-arrival-labels50-v1",
+    "rows": 5400,
+    "rate_hz": 20,
+    "source": "saved sample-accurate received_direct_activity_intervals_s and original FOA waveform power; not repeated old labels",
+    "activity_rule": ">=80% causal arrival occupancy; partial/tail-only/inaudible ignored; original fixed audibility floor",
+    "all_original_100ms_activity_and_ignore_masks_reconstructed": true,
+    "original_dataset_unmodified": true,
+    "dataset_seal_file_sha256": "c4d77d6ea96d125aca67e7ae4a5c19de4f90676055a9c4234f4162eb8b827c65",
+    "source_metadata_sha256": "09ba6464b9cc10e5599d220edfd0fe1b191c82dfe38c0bc800b7ea8c4d39d1d8",
+    "code_sha256": "87aae7e9b371cb5ee518289862d36309d00e1339feb785e959d064bbfc6d9a5b",
+    "manifest_sha256": "566402c1ddc8759b849e2110612ce938c69bf7c49cb024ab62def44265eb3b77"
+  },
+  "contract_tests": {
+    "status": "passed",
+    "even_time_pooling_bitwise_unchanged": true,
+    "odd_partial_time_cell_supported": true,
+    "exactly_same_current250ms_waveform_target_and_yaw_across_three_contexts": true,
+    "tested_epochs": [
+      0,
+      9
+    ],
+    "tested_sample_ids_per_epoch": 16,
+    "partial_activity_ignore_verified": true,
+    "current_step_pool_duration_weights_verified": true,
+    "original_DSF4Hz_perfect_self_test": {
+      "ER": 0.0,
+      "F20": 0.9999999999999998,
+      "LE": 0.0008102847180697748,
+      "LR": 0.9999999999999998,
+      "SELD": 1.1253954418745985e-06
+    }
+  },
+  "swanlab_delivery": {
+    "status": "passed",
+    "no_training_process_modified": true,
+    "source_snapshot_unchanged": true,
+    "checked_at_unix": 1794110798.0644846,
+    "runs": [
+      {
+        "label": "w025",
+        "status": "passed",
+        "url": "https://swanlab.cn/@rdpi1995/AVN-Localization/runs/avn-short-w025-v1-95e35a3f5a88",
+        "remotely_verified_epochs": 1,
+        "metric_series_verified": 18
+      },
+      {
+        "label": "w100",
+        "status": "passed",
+        "url": "https://swanlab.cn/@rdpi1995/AVN-Localization/runs/avn-short-w100-v1-50c20d335ad6",
+        "remotely_verified_epochs": 1,
+        "metric_series_verified": 18
+      },
+      {
+        "label": "w150",
+        "status": "passed",
+        "url": "https://swanlab.cn/@rdpi1995/AVN-Localization/runs/avn-short-w150-v1-bef15e2f0352",
+        "remotely_verified_epochs": 1,
+        "metric_series_verified": 18
+      }
+    ]
+  },
+  "source_snapshot_unchanged": true,
+  "previous_candidate_sha256_unchanged": "8bf8cd0e521084f8ca2a685a8e9a12b769ae476ba37880be41bf53f0613c0fc1",
+  "previous_attempt_preserved": "attempt_01",
+  "runs": [
+    {
+      "label": "w025",
+      "window_s": 0.25,
+      "physical_gpu": 0,
+      "running": true,
+      "container": "avn_short_w025_train_v1",
+      "completed_epochs_at_check": 3,
+      "epochs_requested": 100,
+      "url": "https://swanlab.cn/@rdpi1995/AVN-Localization/runs/avn-short-w025-v1-95e35a3f5a88",
+      "last_enqueued_epoch": 3,
+      "initial_model_state_sha256": "c7a842e10cd8b10cb43624a37b83024eef2eb2943bf2b652aa5cb35f1715bb4a",
+      "initial_head_sha256": "18c41011a108ae7a5ee6bf7b61becc71aaeebd016dc1e504680a2cf6b0db389b",
+      "isolated_gpu_device_requests": [
+        {
+          "Driver": "",
+          "Count": 0,
+          "DeviceIDs": [
+            "GPU-00672b84-f246-0277-2194-aba7269ed3b5"
+          ],
+          "Capabilities": [
+            [
+              "gpu"
+            ]
+          ],
+          "Options": {}
+        }
+      ],
+      "data_loader_start_method": "spawn"
+    },
+    {
+      "label": "w100",
+      "window_s": 1.0,
+      "physical_gpu": 1,
+      "running": true,
+      "container": "avn_short_w100_train_v1",
+      "completed_epochs_at_check": 2,
+      "epochs_requested": 100,
+      "url": "https://swanlab.cn/@rdpi1995/AVN-Localization/runs/avn-short-w100-v1-50c20d335ad6",
+      "last_enqueued_epoch": 2,
+      "initial_model_state_sha256": "c7a842e10cd8b10cb43624a37b83024eef2eb2943bf2b652aa5cb35f1715bb4a",
+      "initial_head_sha256": "18c41011a108ae7a5ee6bf7b61becc71aaeebd016dc1e504680a2cf6b0db389b",
+      "isolated_gpu_device_requests": [
+        {
+          "Driver": "",
+          "Count": 0,
+          "DeviceIDs": [
+            "GPU-035cec58-afdd-7fde-bdcb-1a778bc16b87"
+          ],
+          "Capabilities": [
+            [
+              "gpu"
+            ]
+          ],
+          "Options": {}
+        }
+      ],
+      "data_loader_start_method": "spawn"
+    },
+    {
+      "label": "w150",
+      "window_s": 1.5,
+      "physical_gpu": 2,
+      "running": true,
+      "container": "avn_short_w150_train_v1",
+      "completed_epochs_at_check": 2,
+      "epochs_requested": 100,
+      "url": "https://swanlab.cn/@rdpi1995/AVN-Localization/runs/avn-short-w150-v1-bef15e2f0352",
+      "last_enqueued_epoch": 2,
+      "initial_model_state_sha256": "c7a842e10cd8b10cb43624a37b83024eef2eb2943bf2b652aa5cb35f1715bb4a",
+      "initial_head_sha256": "18c41011a108ae7a5ee6bf7b61becc71aaeebd016dc1e504680a2cf6b0db389b",
+      "isolated_gpu_device_requests": [
+        {
+          "Driver": "",
+          "Count": 0,
+          "DeviceIDs": [
+            "GPU-4c931b33-23e8-642a-0531-8c909f5203b0"
+          ],
+          "Capabilities": [
+            [
+              "gpu"
+            ]
+          ],
+          "Options": {}
+        }
+      ],
+      "data_loader_start_method": "spawn"
+    }
+  ],
+  "no_training_quality_analysis_before100": true,
+  "no_early_stopping": true,
+  "no_navigation_control": true
+}

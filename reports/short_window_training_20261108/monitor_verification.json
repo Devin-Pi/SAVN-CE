@@ -1,0 +1,29 @@
+{
+  "status": "passed",
+  "no_training_process_modified": true,
+  "source_snapshot_unchanged": true,
+  "checked_at_unix": 1794110798.0644846,
+  "runs": [
+    {
+      "label": "w025",
+      "status": "passed",
+      "url": "https://swanlab.cn/@rdpi1995/AVN-Localization/runs/avn-short-w025-v1-95e35a3f5a88",
+      "remotely_verified_epochs": 1,
+      "metric_series_verified": 18
+    },
+    {
+      "label": "w100",
+      "status": "passed",
+      "url": "https://swanlab.cn/@rdpi1995/AVN-Localization/runs/avn-short-w100-v1-50c20d335ad6",
+      "remotely_verified_epochs": 1,
+      "metric_series_verified": 18
+    },
+    {
+      "label": "w150",
+      "status": "passed",
+      "url": "https://swanlab.cn/@rdpi1995/AVN-Localization/runs/avn-short-w150-v1-bef15e2f0352",
+      "remotely_verified_epochs": 1,
+      "metric_series_verified": 18
+    }
+  ]
+}

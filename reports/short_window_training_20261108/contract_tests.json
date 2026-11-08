@@ -1,0 +1,20 @@
+{
+  "status": "passed",
+  "even_time_pooling_bitwise_unchanged": true,
+  "odd_partial_time_cell_supported": true,
+  "exactly_same_current250ms_waveform_target_and_yaw_across_three_contexts": true,
+  "tested_epochs": [
+    0,
+    9
+  ],
+  "tested_sample_ids_per_epoch": 16,
+  "partial_activity_ignore_verified": true,
+  "current_step_pool_duration_weights_verified": true,
+  "original_DSF4Hz_perfect_self_test": {
+    "ER": 0.0,
+    "F20": 0.9999999999999998,
+    "LE": 0.0008102847180697748,
+    "LR": 0.9999999999999998,
+    "SELD": 1.1253954418745985e-06
+  }
+}

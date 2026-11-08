@@ -59,6 +59,8 @@ def epoch_metrics(row):
     values.update({f'val/{key}': row['validation'][key] for key in ('ER', 'F20', 'LE', 'LR', 'SELD', 'loss')})
     if 'reference_validation' in row:
         values.update({f'reference_val/{key}': value for key,value in row['reference_validation'].items()})
+    if 'validation_100ms' in row:
+        values.update({f'val_100ms/{key}': value for key,value in row['validation_100ms'].items()})
     if not all(isinstance(v, (int, float)) and math.isfinite(v) for v in values.values()):
         raise ValueError('Nonfinite or nonnumeric history metric')
     return values
@@ -129,6 +131,9 @@ def main():
     identifier = args.id_prefix + hashlib.sha256((str(run_dir) + config_sha).encode()).hexdigest()[:12]
     tracking_config = {k: config[k] for k in ('epochs', 'batch', 'seed', 'encoder_lr', 'head_lr', 'optimizer', 'loss', 'patience', 'precision')}
     tracking_config.update({k:config[k] for k in ('train_records','validation_records','reference_validation_records','steps_per_epoch','total_optimizer_steps','effective_matmul_precision','reference_dataset_seal_sha256','reference_used_for_selection') if k in config})
+    tracking_config.update({k:config[k] for k in ('window_s','label_rate_hz','step_s','physical_gpu','protocol',
+        'train_target','pooling','validation_protocol','secondary_metric','comparison_caveat',
+        'initial_model_state_sha256','initial_head_sha256','label_cache_manifest_sha256') if k in config})
     tracking_config.update(
         sample_rate_hz=16000, num_classes=len(config['classes']),
         source_config_sha256=config_sha, source_script_sha256=source_sha,
@@ -138,7 +143,7 @@ def main():
         augmentation=config['augmentation'],
         hardware_history='from collector start only; no historical GPU backfill',
         cpu_memory_scope='collector process, not the training interpreter',
-        primary_training_gpu='physical GPU2; automatic GPU metrics cover host devices',
+        primary_training_gpu=f"physical GPU{config.get('physical_gpu',2)}; automatic GPU metrics cover host devices",
     )
     state = dict(status='connecting', run_id=identifier, project=args.project,
                  source_run=str(run_dir), training_process=identity,
@@ -199,6 +204,8 @@ def main():
                 final.update({'best/epoch': result['best_epoch'], 'best/val_SELD': result['best_validation']['SELD']})
                 if result.get('reference_test') is not None:
                     final.update({f'reference_test/{k}':v for k,v in result['reference_test'].items()})
+                if result.get('test_100ms') is not None:
+                    final.update({f'test_100ms/{k}':v for k,v in result['test_100ms'].items()})
                 swanlab.log(final, step=config['epochs'] + 1)
                 swanlab.finish(state='success')
                 state.update(status='completed', final_test_enqueued=True, completed_at_unix=time.time())

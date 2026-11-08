@@ -1,0 +1,14 @@
+{
+  "status": "completed",
+  "version": "avn-arrival-labels50-v1",
+  "rows": 5400,
+  "rate_hz": 20,
+  "source": "saved sample-accurate received_direct_activity_intervals_s and original FOA waveform power; not repeated old labels",
+  "activity_rule": ">=80% causal arrival occupancy; partial/tail-only/inaudible ignored; original fixed audibility floor",
+  "all_original_100ms_activity_and_ignore_masks_reconstructed": true,
+  "original_dataset_unmodified": true,
+  "dataset_seal_file_sha256": "c4d77d6ea96d125aca67e7ae4a5c19de4f90676055a9c4234f4162eb8b827c65",
+  "source_metadata_sha256": "09ba6464b9cc10e5599d220edfd0fe1b191c82dfe38c0bc800b7ea8c4d39d1d8",
+  "code_sha256": "87aae7e9b371cb5ee518289862d36309d00e1339feb785e959d064bbfc6d9a5b",
+  "manifest_sha256": "566402c1ddc8759b849e2110612ce938c69bf7c49cb024ab62def44265eb3b77"
+}
