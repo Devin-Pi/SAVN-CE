@@ -78,3 +78,9 @@ ssh polyu_serve 'docker inspect avseld_dense15h_train_v02 --format "{{.State.Sta
 结束后自动执行完整100轮记账检查（根据数据量计算27000步，拒绝旧的18000步预算）、保存预测重算DSF分类指标，以及仅输入WAV的推理检查。运行中不会宣称这些完成检查已经通过。
 
 新增数据沿用原场景/RIR和21个官方WAV家族，主要增加活动密度及时间组合；不是新的独立录音或声学几何。两版reference测试已提供过开发反馈，不是原封未触及的官方最终测试集。协议为known-sound/unseen-scene、同房间LOS静态单源、10秒输入；不代表在线短窗口、NLOS、多源、移动源或导航Agent成功。训练完成前不宣称已获得可靠localization expert，也不自动替换Agent模型。
+
+## 100 epoch 已完成（2026-11-08）
+
+完整完成27000步，按新版validation SELD选择第97轮。主结果采用新版540条test：SELD=0.018637、F20=0.982210、LE=4.9149°。上一轮模型在同一新test补测：SELD=0.805789、F20=0.146912、LE=124.6751°。
+
+旧sparse test只作跨分布诊断；新模型在该集明显退化。整段全静音负例误报保持为0，事件录音中的有效无活动帧误报仍需关注。完整21类、2×2交叉评估及限制见[最终分析](reports/avn_foa_dense15h_full100/ANALYSIS_zh-CN.md)，结构化结果和CSV同目录。没有自动开始新训练或替换Agent模型。
