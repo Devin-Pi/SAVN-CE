@@ -72,6 +72,12 @@ class Worker:
 
 
 def worker_command(container, profile='legacy'):
+    if profile=='avn_foa_short1s':
+        return ['docker','exec','-i','-e','CUDA_VISIBLE_DEVICES=2','-e','PYTHONDONTWRITEBYTECODE=1',
+            '-w','/workspaces/avn_short1s_shadow_runtime_v1',container,'python','short_candidate_worker.py',
+            '--training-source','/workspaces/avn_short_windows_v1_20261108/code_snapshot',
+            '--runtime','/workspaces/dsf_localization_runtime_v1','--checkpoint',
+            '/workspaces/avn_short_windows_v1_20261108/runs/w100/run_seed7_full100/best.pt']
     if profile=='avn_foa_candidate':
         return ['docker','exec','-i','-e','CUDA_VISIBLE_DEVICES=2','-e','PYTHONDONTWRITEBYTECODE=1',
             '-w','/workspaces/avn_candidate_shadow_runtime_v1',container,'python','candidate_worker.py',
@@ -92,12 +98,18 @@ def finite_vector(value, size):
 
 class LocalizationTool:
     def __init__(self, request, *, profile='legacy'):
-        if profile not in ('legacy','avn_foa_candidate'):raise ValueError('Unknown localization profile')
+        if profile not in ('legacy','avn_foa_candidate','avn_foa_short1s'):raise ValueError('Unknown localization profile')
         self.profile=profile
+        self.window_s=1 if profile=='avn_foa_short1s' else WINDOW_S
         self.limitations=LIMITATIONS if profile=='legacy' else [
             '21 AVN object-named sound classes; ACCDOA scores uncalibrated; no range or instance identity.',
             'All history uses the latest observed listener orientation as its fixed basis; movement within the 10s window is uncalibrated.',
             'Candidate validated on dense static single-source data; sparse/short/online transfer unverified.']
+        if profile=='avn_foa_short1s':
+            self.limitations=[
+                '21 closed sound classes; uncalibrated ACCDOA activity; no range or object instance.',
+                'Latest observed1s context, only current250ms predicted; overlapping context is not independent evidence.',
+                'Shared world-to-listener anchor conversion; current online/motion performance is under shadow evaluation.']
         self.request = request
         self.description = None
         self.reset_episode(None)
@@ -127,7 +139,7 @@ class LocalizationTool:
             raise ValueError('Noncontiguous observation sequence')
         fmt = observation.get('audio_format', {})
         valid_format = (
-            rate in ((16000,) if self.profile=='avn_foa_candidate' else (16000,24000)) and dt == 0.25 and all(fmt.get(k) == v for k, v in MODEL_FORMAT.items())
+            rate in ((16000,) if self.profile!='legacy' else (16000,24000)) and dt == 0.25 and all(fmt.get(k) == v for k, v in MODEL_FORMAT.items())
             and observation['shapes'].get('foa_audio') == [round(rate * dt), 4]
         )
         data = None
@@ -162,7 +174,7 @@ class LocalizationTool:
                 or any(i not in self.observations for i in observation_ids)):
             return result('unsupported_input', 'Expected IDs observed in the active episode')
         last = self.observations[observation_ids[-1]]
-        count = round(WINDOW_S / last['dt'])
+        count = round(self.window_s / last['dt'])
         rows = list(self.observations.values())[max(0, last['step']-count+1):last['step']+1]
         if any(row['data'] is None or row['rate'] != last['rate'] for row in rows):
             return result('unsupported_input', 'Requires contiguous ACN/SN3D FOA at one supported sample rate')
@@ -192,19 +204,21 @@ class LocalizationTool:
         try:
             prediction = self.request({'command': 'predict', 'sample_rate': last['rate'],
                                        'windows_npy_base64': [base64.b64encode(r['data']).decode() for r in rows],
-                                       **({'anchor_rotation_xyzw':last['pose']['rotation_xyzw']} if self.profile=='avn_foa_candidate' else {})})
+                                       **({'anchor_rotation_xyzw':last['pose']['rotation_xyzw']} if self.profile!='legacy' else {})})
         except (OSError, RuntimeError, ValueError):
             return result('error', 'DSF worker request failed', provenance=provenance)
         if prediction['status'] != 'ok':
             return result(prediction['status'], prediction.get('reason'), provenance=provenance)
+        if self.profile=='avn_foa_short1s' and (len(prediction['events_by_frame'])!=1 or len(prediction['raw_accdoa'])!=1 or len(prediction['raw_accdoa'][0])!=189):
+            return result('error','Expected one current-step189-dimensional output',provenance=provenance)
         times = []
         for index, events in enumerate(prediction['events_by_frame']):
-            nominal = start + index/10
-            row = rows[min(count-1, math.floor((index/10 + 1e-8)/last['dt']))]
+            nominal = last['time'] if self.profile=='avn_foa_short1s' else start + index/10
+            row = last if self.profile=='avn_foa_short1s' else rows[min(count-1, math.floor((index/10 + 1e-8)/last['dt']))]
             times.append(nominal)
             for event in events:
                 x, y, z = event['direction_unit_xyz']
-                if self.profile=='avn_foa_candidate':
+                if self.profile!='legacy':
                     h=listener_to_habitat([x,y,z],last['pose']['rotation_xyzw'])
                     event.update(direction_frame='listener_anchor_ambix_xyz',pose_ref=row['id'],
                         orientation_pose_ref=last['id'],direction_unit_habitat_xyz=h,
@@ -217,15 +231,20 @@ class LocalizationTool:
             timing={'audio_start_s': start, 'audio_end_s': end, 'frame_times_s': times,
                     'result_available_at_audio_time_s': end, 'result_available_unix_s': time.time(),
                     **prediction['timing_s']},
-            input_format={**MODEL_FORMAT, 'sample_rate_hz': last['rate'], 'model_sample_rate_hz': 16000 if self.profile=='avn_foa_candidate' else 24000,
-                          'model_coordinate_frame':'listener_anchor' if self.profile=='avn_foa_candidate' else 'habitat_world',
-                          'resampling': None if self.profile=='avn_foa_candidate' else ('polyphase 3/2; original bandwidth <=8 kHz' if last['rate']==16000 else None)},
+            input_format={**MODEL_FORMAT, 'sample_rate_hz': last['rate'], 'model_sample_rate_hz': 16000 if self.profile!='legacy' else 24000,
+                          'model_coordinate_frame':'listener_anchor' if self.profile!='legacy' else 'habitat_world',
+                          'resampling': None if self.profile!='legacy' else ('polyphase 3/2; original bandwidth <=8 kHz' if last['rate']==16000 else None)},
             pose_refs=[{'observation_id': row['id'], 'timestamp_s': row['time'],
                         'receiver_position_habitat_xyz_m': row['receiver'], 'robot_pose': row['pose']} for row in rows],
             events=prediction['events_by_frame'], raw_accdoa=prediction['raw_accdoa'],
             peak_cuda_allocated_mib=prediction['peak_cuda_allocated_mib'],
             range_m=None, uncertainty=None, calibration_status='uncalibrated',
         )
+        if self.profile=='avn_foa_short1s':
+            record['input_format']['model_sample_rate_hz']=16000
+            record['timing']['current_step_interval_s']=[last['time'],end]
+            record['timing']['update_period_s']=last['dt']
+            record['input_format']['model_window_s']=1
         self.cache[key] = record
         return record
 
@@ -243,12 +262,15 @@ def compact(result):
                                'pose_ref', 'direction_frame')}})
     recent = [event for event in events if event['age_at_window_end_s'] <= 1]
     evidence_id = result['provenance']['observation_ids'][-1] + ':localization'
+    short=result.get('input_format',{}).get('model_window_s')==1
     return {'status': 'ok', 'evidence_id': evidence_id,
             'audio_interval_s': [result['timing']['audio_start_s'], end],
+            **({'output_interval_s':result['timing']['current_step_interval_s']} if short else {}),
             'cache_hit': result['provenance']['cache_hit'],
             'recent_events': recent[-8:], 'historical_events': [] if recent else events[-8:],
             'range_m': None,
-            'summary': ('Supported events in the last second of the analyzed window.' if recent
+            'summary': (('Supported events in the current250ms step.' if recent else 'No supported event in the current250ms step.') if short else
+                        ('Supported events in the last second of the analyzed window.' if recent
                         else 'No supported event detected in the last second of the analyzed window. '
-                             'Any listed earlier events are historical and share the same input window.'),
+                             'Any listed earlier events are historical and share the same input window.')),
             'limitations': result.get('limitations',LIMITATIONS)}

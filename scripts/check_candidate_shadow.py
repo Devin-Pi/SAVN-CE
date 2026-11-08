@@ -31,18 +31,24 @@ def main():
     successful_calls=[c for c in calls if c['returncode']==0];assert len(successful_calls)>=len(nav)
     for c in calls:assert not set(c['item_types'])&{'command_execution','mcp_tool_call','web_search','file_change','collab_tool_call'}
     observed=rows(run/'foa_shadow/observations.jsonl');byid={r['observation_id']:r for r in observed}
-    predictions=rows(run/'predictions.jsonl');schema=json.loads(Path('docs/localization_tool.candidate.schema.json').read_text())
+    model=json.loads((run/'model.json').read_text());short=model.get('backend')=='avn_foa_short1s'
+    support_count=4 if short else 40;output_frames=1 if short else 100;window_s=1 if short else 10
+    predictions=rows(run/'predictions.jsonl');schema=json.loads(Path('docs/localization_tool.short.schema.json' if short else 'docs/localization_tool.candidate.schema.json').read_text())
     for r in predictions:jsonschema.validate(r,schema)
     success=[r for r in predictions if r['status']=='ok']
     for r in success:
-        ids=r['provenance']['observation_ids'];assert len(ids)==40 and ids[-1]==r['at']
-        assert byid[ids[-1]]['step']-byid[ids[0]]['step']==39
-        assert r['timing']['audio_end_s']-r['timing']['audio_start_s']==10
+        ids=r['provenance']['observation_ids'];assert len(ids)==support_count and ids[-1]==r['at']
+        assert byid[ids[-1]]['step']-byid[ids[0]]['step']==support_count-1
+        assert r['timing']['audio_end_s']-r['timing']['audio_start_s']==window_s
         assert r['timing']['result_available_at_audio_time_s']==r['timing']['audio_end_s']
-        assert np.asarray(r['raw_accdoa']).shape==(100,189)
+        assert np.asarray(r['raw_accdoa']).shape==(output_frames,189)
+        if short:
+            assert r['timing']['current_step_interval_s']==[byid[r['at']]['timestamp_s'],r['timing']['audio_end_s']]
+            assert r['timing']['frame_times_s']==[byid[r['at']]['timestamp_s']]
         for frame in r['events']:
             for e in frame:
                 assert e['orientation_pose_ref']==ids[-1] and e['pose_ref'] in ids
+                if short:assert e['pose_ref']==ids[-1]
                 assert abs(np.linalg.norm(e['direction_unit_habitat_xyz'])-1)<1e-5
     # Actor container is separate from the simulator and sees no scene/data/output mounts.
     actor=json.loads(a.actor_audit.read_text())
@@ -50,20 +56,40 @@ def main():
     assert set(actor['mount_destinations'])<=allowed and actor['all_bind_mounts_readonly']
     assert actor['readonly_root'] and actor['user'] not in ('0','0:0','')
     for decision in accepted:assert all(':localization' not in e for e in decision['evidence_ids'])
+    for item in rows(run/'model_observations.jsonl'):
+        payload=json.dumps(item)
+        assert ':localization' not in payload and 'raw_accdoa' not in payload and 'avn_short_context_1s_epoch083' not in payload
+    commits=[r for r in rows(run/'shadow.jsonl') if 'decision_already_committed_sha256' in r]
+    actions_by_anchor={x['observation_before']:x for x in nav}
+    for r in commits:
+        expected=hashlib.sha256(json.dumps(actions_by_anchor[r['at']]['decision'],sort_keys=True).encode()).hexdigest()
+        assert r['decision_already_committed_sha256']==expected
     truth=json.loads((private_path(run/'foa_shadow')/'evaluation_truth.json').read_text())
     evaluation=json.loads((private_path(run/'navigation')/'evaluation.json').read_text())
     # Offline only. Keep independent from the CLI input directory.
     source=truth['acoustic_source_position'];events_by_class=Counter();angles=[];correct_angles=[];recent=0;numeric_silent=0
+    goal=truth['official_episode']['goals'][0];onset,offset=goal['onset'],goal['offset']
+    source_on_steps=chair_on_steps=quiet_steps=quiet_alarms=0;source_on_20=0;source_on_angles=[]
     for r in success:
         poses={x['observation_id']:x for x in r['pose_refs']}
+        if short:
+            current=byid[r['at']];on=onset<=current['timestamp_s']<offset;quiet=current['audio_rms']<=1e-7
+            source_on_steps+=int(on);quiet_steps+=int(quiet)
+            chair_on_steps+=int(on and any(e['class_name']=='chair' for e in r['events'][0]))
+            quiet_alarms+=int(quiet and bool(r['events'][0]));current_chair_angles=[]
         for index,frame in enumerate(r['events']):
             for e in frame:
-                events_by_class[e['class_name']]+=1;recent+=int(index>=90)
+                events_by_class[e['class_name']]+=1;recent+=int(short or index>=90)
                 if byid[e['pose_ref']]['audio_rms']<=1e-7:numeric_silent+=1;continue
                 receiver=poses[e['pose_ref']]['receiver_position_habitat_xyz_m'];v=np.asarray(source)-receiver;v/=np.linalg.norm(v)
                 angle=float(np.degrees(np.arccos(np.clip(np.dot(v,e['direction_unit_habitat_xyz']),-1,1))))
                 angles.append(angle)
-                if e['class_name']=='chair':correct_angles.append(angle)
+                if e['class_name']=='chair':
+                    correct_angles.append(angle)
+                    if short and on:current_chair_angles.append(angle)
+        if short and current_chair_angles:
+            source_on_angles.append(min(current_chair_angles))
+            if min(current_chair_angles)<=20:source_on_20+=1
     def stats(values):return dict(count=len(values),mean_error_deg=statistics.mean(values) if values else None,within20=sum(v<=20 for v in values),over90=sum(v>90 for v in values))
     report=dict(status='passed',episode_id='1000000008',action_count=len(nav),movement_steps=len(observed)-1,
         observation_count=len(observed),policy_model='gpt-6.1-sol',actual_successful_codex_requests=len(successful_calls),failed_codex_requests=len(calls)-len(successful_calls),
@@ -74,7 +100,14 @@ def main():
         events_on_numerically_quiet_quarter_second_windows=numeric_silent,
         all_class_conditional_direction=stats(angles),chair_conditional_direction=stats(correct_angles),
         conditional_metric_note='Offline renderer-truth diagnostic on numerical RMS>1e-7; overlapping predictions counted, not independent samples; not SELD/F20 or Agent success',
-        navigation=evaluation,checkpoint_sha256=json.loads((run/'model.json').read_text())['checkpoint_sha256'])
+        navigation=evaluation,checkpoint_sha256=model['checkpoint_sha256'])
+    if short:
+        report.update(model_window_s=1,output_update_period_s=.25,source_on_steps=source_on_steps,
+            chair_detected_source_on_steps=chair_on_steps,correct_class_and20deg_source_on_steps=source_on_20,
+            numerical_quiet_steps=quiet_steps,numerical_quiet_steps_with_prediction=quiet_alarms,
+            source_schedule_s=[onset,offset],current_step_outputs_verified=True,
+            chair_source_on_conditional_direction=stats(source_on_angles),
+            actions_committed_before_localization_verified=True)
     (run/'shadow_evaluation.json').write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report))
 
