@@ -31,6 +31,7 @@ def main():
                     env=OfficialEpisodeEnv(req['output'],req.get('episode_id','410'),req.get('resolution',256),req.get('max_steps',64),req.get('seed',7),episodes_path=req.get('episode_file',DEFAULT_EPISODES),audio_mode=req.get('audio_mode','binaural'));response={'observation':public(env.reset()),'actions':['move_forward','turn_left','turn_right','stop']}
                     if FINALIZE_ROLLOUT:distances=[env.initial_distance]
                 elif cmd=='observe':response={'observation':public(env.observe())}
+                elif cmd=='state':response={'state':env.current_state()}
                 elif cmd in ('step','stop'):
                     o,done=env.step('stop' if cmd=='stop' else req['action'],req.get('decision'));response={'observation':public(o),'done':done}
                     if FINALIZE_ROLLOUT and env.index==len(distances):distances.append(env._distance())

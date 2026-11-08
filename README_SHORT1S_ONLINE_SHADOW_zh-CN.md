@@ -2,6 +2,8 @@
 
 本轮已完成，实际结果见[在线测试报告](reports/short1s_online_shadow_20261108/README_zh-CN.md)：24个发声时段检出15个`chair`，条件平均方向误差6.999°，34个数值近静音时段零误报。全程仅旁路记录，没有用于Agent判断；以下为运行协议。
 
+另已新增[同步1秒高层调度](README_SYNCHRONOUS_AGENT_zh-CN.md)，通过`--decision-period-s 1`显式启用，保留本报告的原逐步模式。
+
 本轮实际运行SAVN-CE／Habitat环境，由现有Codex Agent在线选择动作，独立FOA环境镜像执行这些动作。**定位结果只记录，不注册到Agent工具列表，也不进入提示词、历史、可引用证据或STOP门控。** 这不是把旧视频／旧动作重新回放，也不把定位改进解释为导航成功。
 
 ## 固定设置

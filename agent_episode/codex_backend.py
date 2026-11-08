@@ -17,7 +17,19 @@ class CodexBackend:
         (self.inputs/'schema.json').write_text(json.dumps(schema))
         payload={'current':summary,'past_steps_oldest_first':list(history),'available_evidence_ids':sorted(evidence),
                  'available_actions':list(actions),'feedback_on_previous_proposal':feedback}
-        prompt=INSTRUCTIONS+'\nYou are only selecting a robot action. Do not use tools, browse, inspect files, or request other agents. Return the final JSON matching the supplied schema.\n'+json.dumps(payload,allow_nan=False,separators=(',',':'))
+        instructions=INSTRUCTIONS
+        if summary.get('control',{}).get('mode')=='synchronous_segments_v1':
+            instructions=instructions.replace(
+                'Choose exactly one primitive action.\nmove_forward advances 0.25 m, turn_left and turn_right rotate 15 degrees, stop ends the episode.',
+                'Choose one bounded action segment. The coordinator repeats your primitive for up to '
+                f"{summary['control']['max_native_steps']} native steps (.25s each), at most 1 simulated second. "
+                'Each forward primitive advances .25m; each turn primitive rotates 15 degrees. '
+                'A full four-step segment can move 1m or rotate 60 degrees. STOP is immediate. '
+                'Collision, close/unknown forward depth or existing arrival evidence may interrupt early. '
+                'The simulator is paused at current.control.latest_pose during this request. '
+                'Current RGB-D and pose are latest; past audio belongs to its original observation poses. '
+                'The stereo panel and current audio summary cover only the latest .25s, not a 1s average.')
+        prompt=instructions+'\nYou are only selecting a robot action. Do not use tools, browse, inspect files, or request other agents. Return the final JSON matching the supplied schema.\n'+json.dumps(payload,allow_nan=False,separators=(',',':'))
         command=['docker','exec','-i',self.container,'codex','exec','--model',self.model,'--ephemeral','--skip-git-repo-check',
             '--sandbox','read-only','--json','--color','never','--output-schema','/inputs/schema.json','-C','/inputs']
         for i in range(len(images)):command+=['--image',f'/inputs/image_{i}.png']

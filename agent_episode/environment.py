@@ -60,6 +60,12 @@ class OfficialEpisodeEnv:
 
     def _distance(self):return float(self.sim.geodesic_distance(self.sim.get_agent_state().position,[self._episode.goals[0].position]))
 
+    def current_state(self):
+        """Read live robot pose without advancing time or returning target truth."""
+        state=self.sim.get_agent_state()
+        return dict(observation_id=f'obs_{self.index:04d}',step=self.index,timestamp_s=self.index*self.dt,
+                    pose=dict(position=state.position.tolist(),rotation_xyzw=quat_to_coeffs(state.rotation).tolist()))
+
     def observe(self):
         if self._cached is not None:return self._cached
         state=self.sim.get_agent_state();audio=self.sim.get_current_audiogoal_observation().copy()

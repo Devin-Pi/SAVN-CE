@@ -26,9 +26,34 @@ def main():
             assert abs(sum(a*b for a,b in zip(x[key]['rotation_xyzw'],y[key]['rotation_xyzw'])))>1-1e-5
         assert y['decision']['primary_decision_sha256']==hashlib.sha256(json.dumps(x['decision'],sort_keys=True).encode()).hexdigest()
     accepted=[r['proposal'] for r in rows(run/'model_decisions.jsonl') if r['status']=='accepted']
-    assert accepted==[x['decision'] for x in nav]
+    segmented=json.loads((run/'run_config.json').read_text()).get('control_mode')=='synchronous_segments_v1'
+    cycle_summary=None
+    if segmented:
+        lifecycle=rows(run/'decision_cycles.jsonl');assert len(lifecycle)==3*len(accepted)
+        offset=0;durations=[];reasons=Counter()
+        for index,decision in enumerate(accepted):
+            started,returned,finished=lifecycle[3*index:3*index+3]
+            assert [r['event'] for r in (started,returned,finished)]==['decision_started','decision_returned','segment_finished']
+            assert all(r['cycle']==index for r in (started,returned,finished))
+            assert started['state']==returned['state']==finished['decision_anchor']
+            assert returned['frozen_verified'] and returned['decision']==decision
+            assert returned['wall_time_s']>=started['wall_time_s']
+            count=finished['native_steps'];assert 0<=count<=returned['max_native_steps']<=4
+            assert count*.25==finished['advanced_sim_time_s']
+            block=nav[offset:offset+(1 if decision['action']=='stop' else count)]
+            assert block and all(r['decision']==decision for r in block)
+            assert block[0]['observation_before']==decision['observation_id']==started['state']['observation_id']
+            assert block[-1]['observation_after']==finished['final_state']['observation_id']
+            assert block[0]['pose_before']==started['state']['pose']
+            assert block[-1]['pose_after']==finished['final_state']['pose']
+            offset+=len(block);durations.append(count*.25);reasons[finished['reason']]+=1
+        assert offset==len(nav)
+        assert len(rows(run/'model_observations.jsonl'))==len(accepted)
+        cycle_summary=dict(status='passed',decision_count=len(accepted),frozen_during_all_decisions=True,
+            segment_duration_s=durations,segment_end_reasons=dict(reasons),native_step_s=.25,nominal_decision_period_s=1)
+    else:assert accepted==[x['decision'] for x in nav]
     calls=rows(run/'codex_calls.jsonl');assert all(c['model']=='gpt-6.1-sol' and not c['shadow_visible'] for c in calls)
-    successful_calls=[c for c in calls if c['returncode']==0];assert len(successful_calls)>=len(nav)
+    successful_calls=[c for c in calls if c['returncode']==0];assert len(successful_calls)>=len(accepted)
     for c in calls:assert not set(c['item_types'])&{'command_execution','mcp_tool_call','web_search','file_change','collab_tool_call'}
     observed=rows(run/'foa_shadow/observations.jsonl');byid={r['observation_id']:r for r in observed}
     model=json.loads((run/'model.json').read_text());short=model.get('backend')=='avn_foa_short1s'
@@ -125,6 +150,7 @@ def main():
         all_class_conditional_direction=stats(angles),chair_conditional_direction=stats(correct_angles),
         conditional_metric_note='Offline renderer-truth diagnostic on numerical RMS>1e-7; overlapping predictions counted, not independent samples; not SELD/F20 or Agent success',
         navigation=evaluation,checkpoint_sha256=model['checkpoint_sha256'])
+    if cycle_summary:report['synchronous_control']=cycle_summary
     if short:
         first_chair=next((x['output_end_s'] for x in step_rows if x['source_on_evaluation_only'] and 'chair' in x['classes'].split(';')),None)
         report.update(model_window_s=1,output_update_period_s=.25,source_on_steps=source_on_steps,
