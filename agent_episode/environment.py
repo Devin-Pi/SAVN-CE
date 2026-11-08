@@ -114,7 +114,34 @@ class OfficialEpisodeEnv:
 
     def evaluate(self):
         distance=self._distance();stopped=bool(getattr(self,'_actions',[]) and self._actions[-1]['action_id']==0)
-        return {'official_episode_id':self.episode_id,'initial_distance_m':self.initial_distance,'final_distance_m':distance,'stopped':stopped,'success_stop_within_1m':stopped and distance<1.0,'movement_steps':self.index,'num_actions':len(getattr(self,'_actions',[])),'termination':'stop' if stopped else 'step_budget','note':'Evaluator-only ground truth; not sent to policy.'}
+        actions=getattr(self,'_actions',[]);listening=sum(x['action']=='listen' for x in actions)
+        return {'official_episode_id':self.episode_id,'initial_distance_m':self.initial_distance,'final_distance_m':distance,'stopped':stopped,'success_stop_within_1m':stopped and distance<1.0,'movement_steps':self.index-listening,'listening_steps':listening,'total_steps':self.index,'movement_time_s':(self.index-listening)*self.dt,'listening_time_s':listening*self.dt,'num_actions':len(actions),'termination':'stop' if stopped else 'step_budget','note':'Evaluator-only ground truth; not sent to policy.'}
+
+    def listen_step(self,decision=None):
+        """Advance native audio/time with a zero-displacement engine action.
+
+        This coordinator-only action does not replace STOP or reset acoustics.
+        The official episode, primitive policy action space and simulator step
+        implementation remain unchanged.
+        """
+        if self.done:raise RuntimeError('Episode finished')
+        import habitat_sim
+        key='savnce_stationary_listen'
+        space=self.sim._sim.get_agent(0).agent_config.action_space
+        if key not in space:
+            space[key]=habitat_sim.ActionSpec('move_forward',habitat_sim.ActuationSpec(amount=0.0))
+        old=self.observe();before=self.current_state()
+        self._native=self.sim.step(key);self.index+=1
+        self._last_collision=False;self._last_blocked=False;self._cached=None
+        new=self.observe();after=self.current_state()
+        if not np.allclose(before['pose']['position'],after['pose']['position'],rtol=0,atol=1e-7) or not np.allclose(before['pose']['rotation_xyzw'],after['pose']['rotation_xyzw'],rtol=0,atol=1e-7):
+            raise RuntimeError('Stationary listening changed robot pose')
+        self.done=self.index>=self.max_steps
+        if not hasattr(self,'_actions'):self._actions=[]
+        row=dict(transition_id=f'transition_{len(self._actions):04d}',observation_before=old['observation_id'],action_id=key,action='listen',observation_after=new['observation_id'],pose_before=old['pose'],pose_after=new['pose'],translation_m=0.0,collision=False,forward_blocked=False,done=self.done,decision=decision)
+        self._actions.append(row)
+        with (self.output/'actions.jsonl').open('a') as f:f.write(json.dumps(row)+'\n')
+        return new,self.done
     def export_foa_wav(self):
         windows = []
         for path in sorted((self.output/'observations').glob('obs_*.wav')):

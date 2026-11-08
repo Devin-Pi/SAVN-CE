@@ -17,8 +17,8 @@ def assert_pose(primary,foa):
     assert abs(sum(a*b for a,b in zip(primary['pose']['rotation_xyzw'],foa['pose']['rotation_xyzw'])))>1-1e-5
 
 
-def run_segmented(primary,foa,*,sim,shadow,extract,tool,backend,history,observed,out,max_steps):
-    latest={}
+def run_segmented(primary,foa,*,sim,shadow,extract,tool,backend,history,observed,out,max_steps,listen_s=0):
+    latest={};stationary_blocks=deque(maxlen=4)
     def prepare(obs):
         assert_pose(obs,foa)
         if latest.get('id')==obs['observation_id']:return latest['data']
@@ -34,6 +34,7 @@ def run_segmented(primary,foa,*,sim,shadow,extract,tool,backend,history,observed
         allowed=tuple(action for action in ACTIONS if action!='move_forward' or (center is not None and center['p10_m']>=.45))
         return choose(backend,'evidence',data,history,allowed,observed,out/'model_decisions.jsonl')
     def before_action(obs,decision):
+        if listen_s:return
         digest=hashlib.sha256(json.dumps(decision,sort_keys=True).encode()).hexdigest()
         result=tool.analyze([obs['observation_id']]);append(out/'predictions.jsonl',dict(at=obs['observation_id'],**result))
         append(out/'shadow.jsonl',dict(at=obs['observation_id'],decision_already_committed_sha256=digest,**compact(result)))
@@ -52,11 +53,38 @@ def run_segmented(primary,foa,*,sim,shadow,extract,tool,backend,history,observed
         obs=sim({'command':'state'})['state']
         other=shadow({'command':'state'})['state'];assert_pose(obs,other)
         return obs
+    def listen_advance(cycle):
+        nonlocal foa
+        summary=latest['data']['summary']
+        decision=dict(source='coordinator_stationary_listening',cycle=cycle)
+        digest=hashlib.sha256(json.dumps(decision,sort_keys=True).encode()).hexdigest()
+        reply=sim(dict(command='listen',decision=decision))
+        mirror=shadow(dict(command='listen',decision=dict(source='primary_action_mirror',primary_decision_sha256=digest)))
+        foa=mirror['observation'];obs=reply['observation'];assert reply['done']==mirror['done'];assert_pose(obs,foa)
+        stationary_blocks.append(obs)
+        history.append({k:summary[k] for k in ('observation_id','step','sim_time_s','xz_m','forward_xz','collided','forward_blocked','audio','depth')}|{'action':'listen'})
+        print(json.dumps(dict(observation=summary['observation_id'],action='listen',step=obs['step'],done=reply['done'])),flush=True)
+        return obs,reply['done']
+    def after_listen(obs,window,data):
+        ids=[row['observation_id'] for row in window]
+        assert ids==[row['observation_id'] for row in stationary_blocks]
+        aggregate=extract(dict(command='stationary_summary',observations=list(stationary_blocks)))
+        result_data=dict(data,summary=dict(data['summary'],stationary_audio=aggregate['stationary_audio']),audio_png=aggregate['audio_png'])
+        digest=hashlib.sha256(json.dumps(result_data,sort_keys=True).encode()).hexdigest()
+        result=tool.analyze([obs['observation_id']])
+        assert result['status']=='ok' and result['provenance']['observation_ids']==ids
+        assert digest==hashlib.sha256(json.dumps(result_data,sort_keys=True).encode()).hexdigest()
+        append(out/'predictions.jsonl',dict(at=obs['observation_id'],**result))
+        append(out/'shadow.jsonl',dict(at=obs['observation_id'],phase='stationary_listen',policy_input_sha256=digest,policy_input_unchanged_verified=True,**compact(result)))
+        return result_data
     primary,cycles=run_synchronous(primary,prepare=prepare,decide=decide,advance=advance,
         read_current=read_current,before_action=before_action,
-        log_event=lambda row:append(out/'decision_cycles.jsonl',row),max_steps=max_steps)
-    result=tool.analyze([foa['observation_id']]);append(out/'predictions.jsonl',dict(at=foa['observation_id'],**result))
-    append(out/'shadow.jsonl',dict(at=foa['observation_id'],terminal=True,**compact(result)))
+        log_event=lambda row:append(out/'decision_cycles.jsonl',row),max_steps=max_steps,
+        listen_advance=listen_advance if listen_s else None,after_listen=after_listen if listen_s else None,
+        log_listening=(lambda row:append(out/'listening_cycles.jsonl',row)) if listen_s else None)
+    if not listen_s:
+        result=tool.analyze([foa['observation_id']]);append(out/'predictions.jsonl',dict(at=foa['observation_id'],**result))
+        append(out/'shadow.jsonl',dict(at=foa['observation_id'],terminal=True,**compact(result)))
     return primary,cycles
 
 
@@ -64,8 +92,10 @@ def main():
     p=argparse.ArgumentParser();p.add_argument('--output',type=Path,required=True);p.add_argument('--sim-workdir',required=True)
     p.add_argument('--inputs',type=Path,required=True);p.add_argument('--episode-id',default='1000000008');p.add_argument('--steps',type=int,default=64);p.add_argument('--seed',type=int,default=7)
     p.add_argument('--decision-period-s',type=float,choices=(.25,1.),default=.25,help='1 enables synchronous, guarded segments of up to four native steps')
+    p.add_argument('--listen-before-decide-s',type=float,choices=(0.,1.),default=0.,help='Collect four fresh fixed-pose blocks before every decision; counts toward --steps')
     p.add_argument('--profile',choices=('avn_foa_candidate','avn_foa_short1s'),default='avn_foa_candidate');a=p.parse_args()
     if a.steps<=0:p.error('steps must be positive')
+    if a.listen_before_decide_s and (a.decision_period_s!=1 or a.profile!='avn_foa_short1s'):p.error('Stationary listening requires 1s movement segments and 1s localization')
     if a.decision_period_s==1 and a.profile!='avn_foa_short1s':p.error('1s decision mode requires the 1s localization profile')
     if a.output.is_absolute():raise ValueError('Use a path relative to the mounted project worktree')
     a.output.mkdir(parents=True,exist_ok=False);out=a.output
@@ -74,7 +104,7 @@ def main():
         policy_observations='primary RGB-D/binaural/pose; existing passive STOP gate',shadow='separate FOA env, exact same executed actions, never fed to policy',
         input_rate=16000,model_window_s=1 if a.profile=='avn_foa_short1s' else 10,
         localization_profile=a.profile,localization_update_period_s=.25 if a.profile=='avn_foa_short1s' else 1,resolution=512,
-        decision_period_s=a.decision_period_s,control_mode='synchronous_segments_v1' if a.decision_period_s==1 else 'per_native_step',
+        decision_period_s=a.decision_period_s,listen_before_decide_s=a.listen_before_decide_s,control_mode='stationary_listen_v1' if a.listen_before_decide_s else ('synchronous_segments_v1' if a.decision_period_s==1 else 'per_native_step'),
         step_budget_unit='native .25s steps',segment_guards='sensor-only; no localization or target truth'),indent=2)+'\n')
     backend=CodexBackend(a.inputs,out/'codex_calls.jsonl');history=deque(maxlen=8);observed=set()
     simcmd=['docker','exec','-i','-e','HABITAT_SIM_LOG=quiet','-e','MAGNUM_LOG=quiet','-w',a.sim_workdir,'savnce_dev','python','-m']
@@ -93,7 +123,7 @@ def main():
         try:
             if a.decision_period_s==1:
                 primary,cycles=run_segmented(primary,foa,sim=sim,shadow=shadow,extract=extract,tool=tool,backend=backend,
-                    history=history,observed=observed,out=out,max_steps=a.steps)
+                    history=history,observed=observed,out=out,max_steps=a.steps,listen_s=a.listen_before_decide_s)
                 done=True
             while not done:
                 assert_pose(primary,foa);tool.add_observation(foa)
@@ -119,6 +149,8 @@ def main():
                 result=tool.analyze([foa['observation_id']]);append(out/'predictions.jsonl',dict(at=foa['observation_id'],**result));append(out/'shadow.jsonl',dict(at=foa['observation_id'],terminal=True,**compact(result)))
         finally:
             sim({'command':'close'});shadow({'command':'close'})
-    (out/'rollout_complete.json').write_text(json.dumps(dict(status='completed',movement_steps=primary['step'],shadow_used_for_navigation=False,pose_lockstep_verified=True,policy_model='gpt-6.1-sol',decision_cycles=cycles,decision_period_s=a.decision_period_s),indent=2)+'\n')
+    actions=[json.loads(line) for line in (out/'navigation/actions.jsonl').read_text().splitlines()]
+    listen_count=sum(row['action']=='listen' for row in actions)
+    (out/'rollout_complete.json').write_text(json.dumps(dict(status='completed',movement_steps=primary['step']-listen_count,listening_steps=listen_count,total_native_steps=primary['step'],shadow_used_for_navigation=False,pose_lockstep_verified=True,policy_model='gpt-6.1-sol',decision_cycles=cycles,decision_period_s=a.decision_period_s),indent=2)+'\n')
 
 if __name__=='__main__':main()

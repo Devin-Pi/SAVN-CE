@@ -26,7 +26,25 @@ def main():
             assert abs(sum(a*b for a,b in zip(x[key]['rotation_xyzw'],y[key]['rotation_xyzw'])))>1-1e-5
         assert y['decision']['primary_decision_sha256']==hashlib.sha256(json.dumps(x['decision'],sort_keys=True).encode()).hexdigest()
     accepted=[r['proposal'] for r in rows(run/'model_decisions.jsonl') if r['status']=='accepted']
-    segmented=json.loads((run/'run_config.json').read_text()).get('control_mode')=='synchronous_segments_v1'
+    mode=json.loads((run/'run_config.json').read_text()).get('control_mode')
+    stationary=mode=='stationary_listen_v1'
+    segmented=mode in ('synchronous_segments_v1','stationary_listen_v1')
+    controlled=[row for row in nav if row['action']!='listen']
+    listening_windows=[]
+    if stationary:
+        acquisition=rows(run/'listening_cycles.jsonl');assert len(acquisition)%2==0
+        for start,end in zip(acquisition[::2],acquisition[1::2]):
+            assert start['event']=='listening_started' and end['event']=='listening_finished' and start['cycle']==end['cycle']
+            assert start['state']==end['start_state'] and end['unchanged_pose_verified']
+            n=end['native_steps'];assert 1<=n<=4 and end['complete']==(n==4)
+            assert end['final_state']['step']-start['state']['step']==n
+            assert end['advanced_sim_time_s']==n*.25
+            block=nav[start['state']['step']:end['final_state']['step']]
+            assert len(block)==n and all(x['action']=='listen' for x in block)
+            assert [x['observation_after'] for x in block]==end['observation_ids']
+            assert all(x['pose_before']==x['pose_after']==start['state']['pose'] for x in block)
+            assert end['audio_interval_s'][1]-end['audio_interval_s'][0]==n*.25
+            if end['complete']:listening_windows.append(end)
     cycle_summary=None
     if segmented:
         lifecycle=rows(run/'decision_cycles.jsonl');assert len(lifecycle)==3*len(accepted)
@@ -40,22 +58,35 @@ def main():
             assert returned['wall_time_s']>=started['wall_time_s']
             count=finished['native_steps'];assert 0<=count<=returned['max_native_steps']<=4
             assert count*.25==finished['advanced_sim_time_s']
-            block=nav[offset:offset+(1 if decision['action']=='stop' else count)]
+            block=controlled[offset:offset+(1 if decision['action']=='stop' else count)]
             assert block and all(r['decision']==decision for r in block)
             assert block[0]['observation_before']==decision['observation_id']==started['state']['observation_id']
             assert block[-1]['observation_after']==finished['final_state']['observation_id']
             assert block[0]['pose_before']==started['state']['pose']
             assert block[-1]['pose_after']==finished['final_state']['pose']
             offset+=len(block);durations.append(count*.25);reasons[finished['reason']]+=1
-        assert offset==len(nav)
+        assert offset==len(controlled)
         assert len(rows(run/'model_observations.jsonl'))==len(accepted)
         cycle_summary=dict(status='passed',decision_count=len(accepted),frozen_during_all_decisions=True,
             segment_duration_s=durations,segment_end_reasons=dict(reasons),native_step_s=.25,nominal_decision_period_s=1)
+        if stationary:
+            cycle_summary.update(mode=mode,nominal_decision_period_s=None,listening_window_s=1,
+                complete_stationary_windows=len(listening_windows),fixed_pose_for_all_windows=True,
+                listening_steps=sum(x['action']=='listen' for x in nav),movement_steps=sum(x['action'] not in ('listen','stop') for x in nav))
     else:assert accepted==[x['decision'] for x in nav]
     calls=rows(run/'codex_calls.jsonl');assert all(c['model']=='gpt-6.1-sol' and not c['shadow_visible'] for c in calls)
     successful_calls=[c for c in calls if c['returncode']==0];assert len(successful_calls)>=len(accepted)
     for c in calls:assert not set(c['item_types'])&{'command_execution','mcp_tool_call','web_search','file_change','collab_tool_call'}
     observed=rows(run/'foa_shadow/observations.jsonl');byid={r['observation_id']:r for r in observed}
+    if stationary:
+        full_windows={x['final_state']['observation_id']:x for x in listening_windows}
+        for item in rows(run/'model_observations.jsonl'):
+            window=full_windows[item['observation_id']]
+            assert item['control']['listening_observation_ids']==item['stationary_audio']['observation_ids']==window['observation_ids']
+            assert item['control']['latest_pose']==byid[item['observation_id']]['pose']
+            assert item['stationary_audio']['same_pose_verified'] and item['stationary_audio']['duration_s']==1
+        evidence=rows(run/'shadow.jsonl')
+        assert all(x['phase']=='stationary_listen' and x['policy_input_unchanged_verified'] for x in evidence)
     model=json.loads((run/'model.json').read_text());short=model.get('backend')=='avn_foa_short1s'
     support_count=4 if short else 40;output_frames=1 if short else 100;window_s=1 if short else 10
     predictions=rows(run/'predictions.jsonl');schema=json.loads(Path('docs/localization_tool.short.schema.json' if short else 'docs/localization_tool.candidate.schema.json').read_text())
@@ -105,7 +136,13 @@ def main():
                 assert r['provenance']['support_sample_interval']==previous['provenance']['support_sample_interval']
             else:unique[r['at']]=r
         scored_success=list(unique.values())
-        assert [r['at'] for r in scored_success]==[r['observation_id'] for r in observed[3:]]
+        expected=([x['final_state']['observation_id'] for x in listening_windows] if stationary else [r['observation_id'] for r in observed[3:]])
+        assert [r['at'] for r in scored_success]==expected
+        if stationary:
+            for r in scored_success:
+                assert r['provenance']['observation_ids']==full_windows[r['at']]['observation_ids']
+                poses=[byid[x]['pose'] for x in r['provenance']['observation_ids']]
+                assert all(p==poses[0] for p in poses)
         assert all(r['status'] in ('ok','not_ready') for r in predictions)
     for r in scored_success:
         poses={x['observation_id']:x for x in r['pose_refs']}
@@ -140,7 +177,8 @@ def main():
                 model_inference_ms=r['timing']['inference']*1000,
                 support_ids=';'.join(r['provenance']['observation_ids'])))
     def stats(values):return dict(count=len(values),mean_error_deg=statistics.mean(values) if values else None,within20=sum(v<=20 for v in values),over90=sum(v>90 for v in values))
-    report=dict(status='passed',episode_id='1000000008',action_count=len(nav),movement_steps=len(observed)-1,
+    report=dict(status='passed',episode_id='1000000008',action_count=len(nav),movement_steps=evaluation['movement_steps'],
+        total_native_steps=len(observed)-1,listening_steps=sum(x['action']=='listen' for x in nav),
         observation_count=len(observed),policy_model='gpt-6.1-sol',actual_successful_codex_requests=len(successful_calls),failed_codex_requests=len(calls)-len(successful_calls),
         pose_and_action_lockstep_verified=True,shadow_not_sent_to_policy=True,actor_has_no_scene_assets=True,
         candidate_status_counts=dict(Counter(r['status'] for r in predictions)),unique_successful_anchor_ids=len({r['at'] for r in success}),cached_successful_results=sum(r['provenance']['cache_hit'] for r in success),first_result_audio_time_s=success[0]['timing']['audio_end_s'] if success else None,

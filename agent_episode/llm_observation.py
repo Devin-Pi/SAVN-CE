@@ -196,11 +196,37 @@ def transform(obs, verifier):
             'audio_png': acoustic_png, 'stop_gate': gate}
 
 
+def stationary_summary(observations):
+    """Aggregate four already acquired, fixed-pose binaural blocks; no gate update."""
+    if len(observations)!=4 or len({o['observation_id'] for o in observations})!=4:
+        raise ValueError('Expected four distinct stationary observations')
+    first=observations[0];audio=[]
+    for index,obs in enumerate(observations):
+        if obs['sample_rate']!=16000 or obs['dt_s']!=.25 or obs['step']!=first['step']+index or not np.isclose(obs['timestamp_s'],first['timestamp_s']+index*.25):
+            raise ValueError('Noncontiguous stationary audio')
+        if not np.allclose(obs['pose']['position'],first['pose']['position'],rtol=0,atol=1e-7) or not np.allclose(obs['pose']['rotation_xyzw'],first['pose']['rotation_xyzw'],rtol=0,atol=1e-7):
+            raise ValueError('Stationary aggregation received moving poses')
+        with np.load(io.BytesIO(base64.b64decode(obs['sensor_payload']['data'],validate=True)),allow_pickle=False) as arrays:
+            block=arrays['binaural_audio']
+            if block.shape!=(4000,2) or not np.isfinite(block).all():raise ValueError('Invalid stationary binaural block')
+            if not np.allclose(arrays['position'],obs['pose']['position'],rtol=0,atol=1e-7) or not np.allclose(arrays['rotation_xyzw'],obs['pose']['rotation_xyzw'],rtol=0,atol=1e-7):raise ValueError('Pose/payload mismatch')
+            audio.append(block.copy())
+    wave=np.concatenate(audio);features,_,curve=audio_features(wave,16000)
+    features.update(observation_ids=[o['observation_id'] for o in observations],
+        audio_interval_s=[first['timestamp_s'],observations[-1]['timestamp_s']+.25],duration_s=1.,
+        pose=first['pose'],same_pose_verified=True,sample_rate_hz=16000,
+        note='Same four observed blocks; aggregate is not additional independent evidence')
+    return dict(stationary_audio=features,audio_png=audio_image(wave,16000,features,curve))
+
+
 def main():
     verifier = PassiveArrival()
     for line in sys.stdin:
         try:
-            result = transform(json.loads(line), verifier)
+            request=json.loads(line)
+            if request.get('command')=='stationary_summary':
+                result=stationary_summary(request['observations'])
+            else:result = transform(request, verifier)
             print(json.dumps({'ok': True, **result}, allow_nan=False), flush=True)
         except (ValueError, KeyError, TypeError) as exc:
             print(json.dumps({'ok': False, 'error': str(exc)}), flush=True)

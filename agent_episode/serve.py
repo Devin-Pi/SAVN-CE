@@ -32,6 +32,9 @@ def main():
                     if FINALIZE_ROLLOUT:distances=[env.initial_distance]
                 elif cmd=='observe':response={'observation':public(env.observe())}
                 elif cmd=='state':response={'state':env.current_state()}
+                elif cmd=='listen':
+                    o,done=env.listen_step(req.get('decision'));response={'observation':public(o),'done':done}
+                    if FINALIZE_ROLLOUT and env.index==len(distances):distances.append(env._distance())
                 elif cmd in ('step','stop'):
                     o,done=env.step('stop' if cmd=='stop' else req['action'],req.get('decision'));response={'observation':public(o),'done':done}
                     if FINALIZE_ROLLOUT and env.index==len(distances):distances.append(env._distance())

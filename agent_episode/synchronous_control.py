@@ -27,7 +27,8 @@ def interruption(action, data, obs):
 
 
 def run_synchronous(initial, *, prepare, decide, advance, read_current,
-                    before_action, log_event, max_steps, period_s=1., dt_s=.25):
+                    before_action, log_event, max_steps, period_s=1., dt_s=.25,
+                    listen_advance=None, after_listen=None, log_listening=None):
     """Callbacks stay serialized; only advance() may move the simulator.
 
     One accepted primitive is held for <=4 native steps. The policy is told the
@@ -42,6 +43,29 @@ def run_synchronous(initial, *, prepare, decide, advance, read_current,
     data = prepare(obs)
     cycle = 0
     while obs['step'] < max_steps:
+        listening=None
+        if listen_advance is not None:
+            if after_listen is None or log_listening is None:
+                raise ValueError('Stationary mode requires acquisition callbacks')
+            start=observation_state(obs);window=[];done=False
+            log_listening(dict(event='listening_started',cycle=cycle,state=start))
+            for _ in range(min(4,max_steps-obs['step'])):
+                previous=obs
+                obs,done=listen_advance(cycle)
+                if obs['step']!=previous['step']+1 or not math.isclose(obs['timestamp_s']-previous['timestamp_s'],dt_s):
+                    raise RuntimeError('Listening did not advance one native audio step')
+                if math.dist(obs['pose']['position'],start['pose']['position'])>1e-7 or math.dist(obs['pose']['rotation_xyzw'],start['pose']['rotation_xyzw'])>1e-7:
+                    raise RuntimeError('Robot pose changed during stationary acquisition')
+                window.append(observation_state(obs));data=prepare(obs)
+                if done:break
+            listening=dict(event='listening_finished',cycle=cycle,start_state=start,final_state=observation_state(obs),
+                native_steps=len(window),advanced_sim_time_s=len(window)*dt_s,complete=len(window)==4,
+                observation_ids=[x['observation_id'] for x in window],
+                audio_interval_s=[window[0]['timestamp_s'],window[-1]['timestamp_s']+dt_s],unchanged_pose_verified=True)
+            log_listening(listening)
+            if len(window)==4:data=after_listen(obs,window,data)
+            if done or obs['step']>=max_steps:break
+            if len(window)!=4:raise RuntimeError('Incomplete listening window cannot reach policy')
         before = observation_state(obs)
         assert_frozen(obs, read_current())
         cap = min(round(ratio), max_steps - obs['step'])
@@ -56,6 +80,12 @@ def run_synchronous(initial, *, prepare, decide, advance, read_current,
                        current_audio_interval_s=[obs['timestamp_s'], obs['timestamp_s']+dt_s],
                        acquisition='discrete pose blocks; historical audio has its own poses',
                        interruption='collision/blockage, forward depth p10 < .45m or unknown, existing arrival evidence')
+        if listening is not None:
+            control.update(mode='stationary_listen_v1',nominal_period_s=None,
+                cadence='1s stationary acquisition plus <=1s movement, then pause for policy',
+                listening_observation_ids=listening['observation_ids'],
+                listening_audio_interval_s=listening['audio_interval_s'],
+                listening_duration_s=1.,listening_pose_unchanged_verified=True)
         decision_data = copy.deepcopy(data)
         decision_data['summary']['control'] = control
         started = time.time()

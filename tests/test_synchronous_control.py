@@ -33,7 +33,9 @@ class Harness:
     def advance(self,action,decision):
         self.steps.append((self.obs['step'],action,decision))
         if action=='stop':return self.obs,True
+        previous=self.obs['pose']['position'][0]
         self.obs=observation(self.obs['step']+1)
+        self.obs['pose']['position'][0]=previous+.25
         self.obs['collided_previous_step']=self.obs['step']==self.collide_at
         return self.obs,self.obs['step']>=self.budget
     def read(self):
