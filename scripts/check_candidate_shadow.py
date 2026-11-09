@@ -35,7 +35,7 @@ def main():
     stationary=mode=='stationary_listen_v1'
     segmented=mode in ('synchronous_segments_v1','stationary_listen_v1')
     controlled=[row for row in nav if row['action']!='listen']
-    listening_windows=[];confirmation_windows=[]
+    listening_windows=[];confirmation_windows=[];retry_windows={}
     if stationary:
         acquisition=rows(run/'listening_cycles.jsonl');assert len(acquisition)%2==0
         for start,end in zip(acquisition[::2],acquisition[1::2]):
@@ -49,13 +49,19 @@ def main():
             assert [x['observation_after'] for x in block]==end['observation_ids']
             assert all(x['pose_before']==x['pose_after']==start['state']['pose'] for x in block)
             assert end['audio_interval_s'][1]-end['audio_interval_s'][0]==n*.25
-            if end.get('purpose')=='stop_confirmation':
+            purpose=end.get('purpose')
+            if purpose in ('stop_confirmation','stop_confirmation_retry'):
                 first=listening_windows[-1]
-                assert start.get('purpose')=='stop_confirmation'
-                assert first['cycle']==end['cycle'] and first['purpose']=='decision'
+                expected='decision' if purpose=='stop_confirmation' else 'stop_confirmation'
+                assert start.get('purpose')==purpose
+                assert first['cycle']==end['cycle'] and first['purpose']==expected
                 assert first['final_state']==start['state'] and first['audio_interval_s'][1]==end['audio_interval_s'][0]
                 assert not set(first['observation_ids'])&set(end['observation_ids'])
-                confirmation_windows.append((first,end))
+                if purpose=='stop_confirmation':
+                    confirmation_windows.append((first,end))
+                else:
+                    assert end['cycle'] not in retry_windows and config['max_stop_confirmation_retries']==1
+                    retry_windows[end['cycle']]=end
             if end['complete']:listening_windows.append(end)
     cycle_summary=None
     if segmented:
@@ -84,6 +90,7 @@ def main():
         if stationary:
             cycle_summary.update(mode=mode,nominal_decision_period_s=None,listening_window_s=1,
                 complete_stationary_windows=len(listening_windows),stop_confirmation_windows=len(confirmation_windows),fixed_pose_for_all_windows=True,
+                stop_confirmation_retry_windows=len(retry_windows),
                 listening_steps=sum(x['action']=='listen' for x in nav),movement_steps=sum(x['action'] not in ('listen','stop') for x in nav))
     else:assert accepted==[x['decision'] for x in nav]
     calls=rows(run/'codex_calls.jsonl');assert all(c['model']=='gpt-6.1-sol' and not c['shadow_visible'] for c in calls)
@@ -141,14 +148,32 @@ def main():
         if config.get('stop_rule')=='foa_geometry':
             model_inputs={r['observation_id']:r for r in rows(run/'model_observations.jsonl')}
             assert all(g['config']['angular_tolerance_deg']==config['foa_tolerance_deg'] for g in gates)
+            eligible_ready=set()
             for first,second in confirmation_windows:
                 anchor=first['final_state']['observation_id']
                 assert byanchor[anchor]['request_stationary_confirmation'] and not byanchor[anchor]['ready']
                 assert anchor not in model_inputs
                 final=second['final_state']['observation_id']
+                retry=retry_windows.get(second['cycle'])
+                if retry is not None:
+                    missed=byanchor[final]
+                    assert missed['request_stationary_retry'] and not missed['ready']
+                    assert missed['confirmation_reference_anchor']==anchor and missed['confirmation_count']==1
+                    assert final not in model_inputs
+                    assert not set(first['observation_ids'])&set(retry['observation_ids'])
+                    pred=next(r for r in success if r['at']==final)
+                    assert pred['events']==[[]]
+                    final=retry['final_state']['observation_id']
                 if final in model_inputs:
-                    assert second['complete'] and model_inputs[final]['control']['first_near_anchor']==anchor
-            assert {r['at'] for r in gates if r.get('ready')}<={second['final_state']['observation_id'] for _,second in confirmation_windows}
+                    control=model_inputs[final]['control']
+                    assert (retry or second)['complete'] and control['first_near_anchor']==anchor
+                    if retry is not None:
+                        assert control['missed_confirmation_anchor']==second['final_state']['observation_id']
+                if (retry or second)['complete']:
+                    eligible_ready.add(final)
+                    if byanchor[final]['ready'] and config.get('max_stop_confirmation_retries'):
+                        assert byanchor[final]['confirmation_reference_anchor']==anchor
+            assert {r['at'] for r in gates if r.get('ready')}<=eligible_ready
         for row in rows(run/'model_observations.jsonl'):
             supplied=row['stop_verification'];gate=byanchor[row['observation_id']]
             allowed={'method','evidence_id','ready','reason','checks','estimated_range_interval_m','calibration_status'}

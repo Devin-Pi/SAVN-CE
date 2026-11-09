@@ -75,11 +75,11 @@ class FoaArrivalTests(unittest.TestCase):
 
 
 class GeometryArrivalTests(unittest.TestCase):
-    def first_near(self):
-        gate=FoaArrival(rule='foa_geometry')
+    def first_near(self,tolerance=10.):
+        gate=FoaArrival(rule='foa_geometry',tolerance_deg=tolerance)
         for i,pose in enumerate(POSITIONS[:4]):
             report=gate.update(result(i,pose,label=f'class_{i}'),audio_active=True)
-        self.assertEqual(report['config']['angular_tolerance_deg'],10.)
+        self.assertEqual(report['config']['angular_tolerance_deg'],tolerance)
         self.assertTrue(report['request_stationary_confirmation'],report)
         self.assertFalse(report['ready'])
         self.assertEqual(len(set(report['supporting_classes'])),4)
@@ -112,6 +112,37 @@ class GeometryArrivalTests(unittest.TestCase):
         self.assertTrue(report['request_stationary_confirmation'],report)
         self.assertEqual(len(report['support_ids']),3)
         self.assertNotIn('obs_0004',report['support_ids'])
+
+    def test_one_active_miss_can_be_followed_by_fresh_confirmation(self):
+        gate=self.first_near(5.)
+        missed=result(4,POSITIONS[3])
+        missed.update(events=[[]],timing=dict(audio_start_s=7.25,audio_end_s=8.25))
+        retry=gate.update(missed,audio_active=True)
+        self.assertTrue(retry['request_stationary_retry'])
+        self.assertFalse(retry['ready'])
+        self.assertEqual(retry['confirmation_count'],1)
+        recovered=result(5,POSITIONS[3],label='new_label')
+        recovered['timing'].update(audio_start_s=8.25,audio_end_s=9.25)
+        ready=gate.update(recovered,audio_active=True)
+        self.assertTrue(ready['ready'],ready)
+        self.assertEqual(ready['confirmation_reference_anchor'],'obs_0028')
+        self.assertNotIn('obs_0036',ready['support_ids'])
+
+    def test_silence_motion_or_second_miss_cannot_keep_confirmation(self):
+        for mode in ('silence','motion','miss_twice'):
+            with self.subTest(mode=mode):
+                gate=self.first_near()
+                origin=POSITIONS[4] if mode=='motion' else POSITIONS[3]
+                missed=result(4,origin)
+                missed.update(events=[[]],timing=dict(audio_start_s=7.25,audio_end_s=8.25))
+                first=gate.update(missed,audio_active=mode!='silence')
+                self.assertEqual(bool(first.get('request_stationary_retry')),mode=='miss_twice')
+                third=result(5,origin)
+                third['timing'].update(audio_start_s=8.25,audio_end_s=9.25)
+                if mode=='miss_twice':third['events']=[[]]
+                last=gate.update(third,audio_active=True)
+                self.assertFalse(last['ready'])
+                self.assertFalse(last.get('request_stationary_retry',False))
 
 
 if __name__=='__main__':unittest.main()

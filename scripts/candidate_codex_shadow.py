@@ -9,7 +9,7 @@ from llm_rollout import ACTIONS,MODALITIES,EPISODES,append,jsonl_process,choose
 from codex_backend import CodexBackend
 from localization_tool import LocalizationTool,Worker,compact,worker_command
 from synchronous_control import run_synchronous
-from foa_arrival import FOA_STOP_METHODS,policy_evidence
+from foa_arrival import DEFAULT_FOA_TOLERANCE_DEG,FOA_STOP_METHODS,policy_evidence
 
 
 def assert_pose(primary,foa):
@@ -110,11 +110,11 @@ def main():
     p.add_argument('--listen-before-decide-s',type=float,choices=(0.,1.),default=0.,help='Collect four fresh fixed-pose blocks before every decision; counts toward --steps')
     p.add_argument('--sound-schedule',choices=('episode','sustained'),default='episode',help='sustained preserves onset, extends runtime offset beyond the budget; original episode unchanged')
     p.add_argument('--stop-rule',choices=('legacy',*FOA_STOP_METHODS),default='legacy')
-    p.add_argument('--foa-tolerance-deg',type=float,help='Default is 15 degrees for foa_multiview or 10 for foa_geometry')
+    p.add_argument('--foa-tolerance-deg',type=float,help='Default is 15 degrees for foa_multiview or 5 for foa_geometry')
     p.add_argument('--profile',choices=('avn_foa_candidate','avn_foa_short1s'),default='avn_foa_candidate');a=p.parse_args()
     if a.steps<=0:p.error('steps must be positive')
     uses_foa=a.stop_rule in FOA_STOP_METHODS
-    if a.foa_tolerance_deg is None and uses_foa:a.foa_tolerance_deg=10. if a.stop_rule=='foa_geometry' else 15.
+    if a.foa_tolerance_deg is None and uses_foa:a.foa_tolerance_deg=DEFAULT_FOA_TOLERANCE_DEG[a.stop_rule]
     if a.foa_tolerance_deg is not None and (not uses_foa or not 0.<a.foa_tolerance_deg<=45.):p.error('FOA tolerance requires a FOA rule and an angle in (0, 45] degrees')
     if uses_foa and not a.listen_before_decide_s:p.error('FOA stop requires stationary1s acquisition')
     if a.listen_before_decide_s and (a.decision_period_s!=1 or a.profile!='avn_foa_short1s'):p.error('Stationary listening requires 1s movement segments and 1s localization')
@@ -129,7 +129,7 @@ def main():
         localization_profile=a.profile,localization_update_period_s=None if a.listen_before_decide_s else (.25 if a.profile=='avn_foa_short1s' else 1),resolution=512,
         decision_period_s=a.decision_period_s,listen_before_decide_s=a.listen_before_decide_s,sound_schedule=a.sound_schedule,control_mode='stationary_listen_v1' if a.listen_before_decide_s else ('synchronous_segments_v1' if a.decision_period_s==1 else 'per_native_step'),
         step_budget_unit='native .25s steps',stop_rule=a.stop_rule,foa_tolerance_deg=a.foa_tolerance_deg,
-        localization_used_for_stop=uses_foa,localization_used_for_motion_direction=False,
+        max_stop_confirmation_retries=int(a.stop_rule=='foa_geometry'),localization_used_for_stop=uses_foa,localization_used_for_motion_direction=False,
         segment_guards='sensor-only; no target truth'),indent=2)+'\n')
     backend=CodexBackend(a.inputs,out/'codex_calls.jsonl');history=deque(maxlen=8);observed=set()
     simcmd=['docker','exec','-i','-e','HABITAT_SIM_LOG=quiet','-e','MAGNUM_LOG=quiet','-w',a.sim_workdir,'savnce_dev','python','-m']

@@ -7,6 +7,7 @@ import copy
 import math
 
 FOA_STOP_METHODS = {'foa_multiview': 'foa-signed-rays-v1', 'foa_geometry': 'foa-signed-rays-v2'}
+DEFAULT_FOA_TOLERANCE_DEG = {'foa_multiview': 15., 'foa_geometry': 5.}
 
 
 class FoaArrival:
@@ -17,7 +18,7 @@ class FoaArrival:
         self.np=np
         self.method=FOA_STOP_METHODS[rule]
         self.geometry=rule=='foa_geometry'
-        tolerance_deg=(10. if self.geometry else 15.) if tolerance_deg is None else tolerance_deg
+        tolerance_deg=DEFAULT_FOA_TOLERANCE_DEG[rule] if tolerance_deg is None else tolerance_deg
         if not 0.<tolerance_deg<=45.:
             raise ValueError('FOA tolerance must be in (0, 45] degrees')
         self.cos_tolerance=math.cos(math.radians(tolerance_deg))-1e-8
@@ -70,6 +71,11 @@ class FoaArrival:
         selected=[v for v,keep in zip(views,support[representative]) if keep]
         return selected,candidates[best],candidates[representative]
 
+    def _adjacent_pose(self, previous, start, origin, rotation):
+        return (math.isclose(start,previous['end'],abs_tol=1e-7,rel_tol=0.)
+            and self.np.allclose(origin,previous['origin'],rtol=0,atol=1e-7)
+            and self.np.allclose(rotation,previous['rotation'],rtol=0,atol=1e-7))
+
     def update(self,result,*,audio_active):
         np=self.np
         episode=result.get('provenance',{}).get('episode_ref')
@@ -91,17 +97,28 @@ class FoaArrival:
         rotations=np.asarray([p['robot_pose']['rotation_xyzw'] for p in poses],float)
         if not np.isfinite(origins).all() or not np.isfinite(rotations).all() or not np.allclose(origins,origins[-1],rtol=0,atol=1e-7) or not np.allclose(rotations,rotations[-1],rtol=0,atol=1e-7):
             return unknown('FOA must be collected at a fixed position and orientation')
+        start,end=result['timing']['audio_start_s'],result['timing']['audio_end_s']
+        if not math.isclose(end-start,1.,abs_tol=1e-7):return unknown('Expected 1s acquisition')
+        previous=self.confirmation
+        origin=origins[-1];rotation=rotations[-1]
         frames=result.get('events',[])
+        if (self.geometry and frames==[[]] and previous and previous['count']==1
+                and not previous['missed'] and self._adjacent_pose(previous,start,origin,rotation)):
+            # Keep the first estimate across one missed window. The miss adds
+            # no ray or vote and cannot satisfy the STOP gate.
+            self.used.update(ids)
+            self.confirmation=dict(previous,end=end,missed=True)
+            return self._report(anchor,{'current_usable_foa':False},
+                'Active confirmation window has no decoded event; collect one more stationary window',
+                request_stationary_retry=True,confirmation_count=1,confirmation_reference_anchor=previous['anchor'])
         if len(frames)!=1 or len(frames[0])!=1:return unknown('No unique current event; identity is unverified')
         event=frames[0][0]
         if event.get('pose_ref')!=anchor or event.get('orientation_pose_ref')!=anchor:return unknown('Current ray uses an old pose')
         direction=np.asarray(event.get('direction_unit_habitat_xyz'),float)
         if direction.shape!=(3,) or not np.isfinite(direction).all() or abs(np.linalg.norm(direction)-1)>1e-3:return unknown('Invalid signed world direction')
         direction/=np.linalg.norm(direction)
-        start,end=result['timing']['audio_start_s'],result['timing']['audio_end_s']
-        if not math.isclose(end-start,1.,abs_tol=1e-7):return unknown('Expected 1s acquisition')
         self.used.update(ids)
-        label=event['class_name'];origin=origins[-1]
+        label=event['class_name']
         view=dict(anchor=anchor,origin=origin,direction=direction,end=end,label=label)
         key=None if self.geometry else label
         history=[v for v in self.history.get(key,[]) if 0<end-v['end']<=self.config['max_history_age_s']]
@@ -157,17 +174,14 @@ class FoaArrival:
         current_range=float(np.linalg.norm(point-origin))
         checks['point_estimate_near']=current_range<=1.+1e-6
         near=all(checks.values())
-        previous=self.confirmation
         stable=bool(previous and np.linalg.norm(point-previous['point'])<=.5)
         if stable and self.geometry:
-            stable=bool(math.isclose(start,previous['end'],abs_tol=1e-7,rel_tol=0.) and
-                np.allclose(origin,previous['origin'],rtol=0,atol=1e-7) and
-                np.allclose(rotations[-1],previous['rotation'],rtol=0,atol=1e-7))
+            stable=self._adjacent_pose(previous,start,origin,rotation)
         elif stable:
             stable=previous['class']==label and 0<end-previous['end']<=4.
         count=(previous['count']+1 if stable else 1) if near else 0
         self.confirmation=dict(point=point,end=end,**{'class':label},count=count,
-            origin=origin,rotation=rotations[-1]) if near else None
+            origin=origin,rotation=rotation,anchor=anchor,missed=False) if near else None
         checks['fresh_stable_confirmation']=count>=2
         metadata.update(estimated_range_m=current_range,estimated_range_interval_m=[lower,upper],
             inferred_source_world_xyz=point.tolist(),confirmation_count=count,
@@ -175,6 +189,7 @@ class FoaArrival:
             note='3D Euclidean acoustic range, not guaranteed navigable distance; far checks are finite-grid sensitivity tests')
         if self.geometry:
             metadata['request_stationary_confirmation']=count==1
+            if count>=2:metadata['confirmation_reference_anchor']=previous['anchor']
         return self._report(anchor,checks,'FOA multiview near evidence ready' if all(checks.values()) else 'Range remains far, uncertain, or unconfirmed',**metadata)
 
 

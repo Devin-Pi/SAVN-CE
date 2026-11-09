@@ -69,6 +69,7 @@ def run_synchronous(initial, *, prepare, decide, advance, read_current,
     while obs['step'] < max_steps:
         listening=None
         first_near_anchor=None
+        missed_confirmation_anchor=None
         if listen_advance is not None:
             listening,exhausted=collect_listening(cycle,'decision')
             if exhausted:break
@@ -76,6 +77,10 @@ def run_synchronous(initial, *, prepare, decide, advance, read_current,
                 first_near_anchor=obs['observation_id']
                 listening,exhausted=collect_listening(cycle,'stop_confirmation')
                 if exhausted:break
+                if data['stop_gate'].get('request_stationary_retry'):
+                    missed_confirmation_anchor=obs['observation_id']
+                    listening,exhausted=collect_listening(cycle,'stop_confirmation_retry')
+                    if exhausted:break
         before = observation_state(obs)
         assert_frozen(obs, read_current())
         cap = min(round(ratio), max_steps - obs['step'])
@@ -98,6 +103,8 @@ def run_synchronous(initial, *, prepare, decide, advance, read_current,
                 listening_duration_s=1.,listening_pose_unchanged_verified=True)
             if first_near_anchor is not None:
                 control.update(first_near_anchor=first_near_anchor,stop_confirmation_listen_s=1.)
+            if missed_confirmation_anchor is not None:
+                control.update(missed_confirmation_anchor=missed_confirmation_anchor,stop_confirmation_retry_listen_s=1.)
         decision_data = copy.deepcopy(data)
         decision_data['summary']['control'] = control
         started = time.time()

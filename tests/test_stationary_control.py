@@ -46,11 +46,12 @@ class StationaryTests(unittest.TestCase):
         h=StationaryHarness(budget=16,action='stop');obs,cycles=h.run()
         self.assertEqual((obs['step'],cycles,len(h.listens),len(h.steps)),(4,1,4,1))
         self.assertEqual(h.events[-1]['advanced_sim_time_s'],0)
-    def confirmation_run(self,budget):
+    def confirmation_run(self,budget,retry=False):
         h=StationaryHarness(budget=budget,action='stop')
         def aggregate(obs,window,data):
             h.aggregate(obs,window,data)
-            return dict(data,stop_gate={'request_stationary_confirmation':obs['step']==4,'ready':obs['step']==8})
+            return dict(data,stop_gate={'request_stationary_confirmation':obs['step']==4,
+                'request_stationary_retry':retry and obs['step']==8,'ready':obs['step']==(12 if retry else 8)})
         obs,cycles=Harness.run(h,listen_advance=h.listen,after_listen=aggregate,log_listening=h.acquisitions.append)
         return h,obs,cycles
     def test_near_window_defers_agent_until_new_stationary_window(self):
@@ -63,6 +64,18 @@ class StationaryTests(unittest.TestCase):
     def test_confirmation_cannot_exceed_native_budget(self):
         h,obs,cycles=self.confirmation_run(6)
         self.assertEqual((obs['step'],cycles,len(h.inputs),len(h.windows)),(6,0,0,1))
+        self.assertFalse(h.acquisitions[-1]['complete'])
+    def test_retry_collects_one_fresh_window_before_agent(self):
+        h,obs,cycles=self.confirmation_run(16,retry=True)
+        self.assertEqual((obs['step'],cycles,len(h.steps)),(12,1,1))
+        self.assertEqual([a['purpose'] for a in h.acquisitions[1::2]],
+                         ['decision','stop_confirmation','stop_confirmation_retry'])
+        control=h.inputs[0]['summary']['control']
+        self.assertEqual(control['missed_confirmation_anchor'],'obs_0008')
+        self.assertEqual(control['listening_observation_ids'],[f'obs_{i:04d}' for i in range(9,13)])
+    def test_partial_retry_never_reaches_agent(self):
+        h,obs,cycles=self.confirmation_run(10,retry=True)
+        self.assertEqual((obs['step'],cycles,len(h.inputs),len(h.windows)),(10,0,0,2))
         self.assertFalse(h.acquisitions[-1]['complete'])
     def test_pose_drift_in_listening_fails_before_policy(self):
         h=StationaryHarness()
