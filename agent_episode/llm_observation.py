@@ -12,6 +12,7 @@ from habitat_sim.utils.common import quat_from_coeffs, quat_rotate_vector
 from .arrival import ArrivalEvidence
 from .policies import AudioDepthAgent
 from .stop_probe import fractional_peak_lag
+from .foa_arrival import FoaArrival
 
 
 ARRAYS = {'rgb', 'depth_m', 'binaural_audio', 'position', 'rotation_xyzw'}
@@ -221,11 +222,14 @@ def stationary_summary(observations):
 
 def main():
     verifier = PassiveArrival()
+    foa_verifier = FoaArrival()
     for line in sys.stdin:
         try:
             request=json.loads(line)
             if request.get('command')=='stationary_summary':
                 result=stationary_summary(request['observations'])
+            elif request.get('command')=='foa_stop_gate':
+                result={'gate':foa_verifier.update(request['result'],audio_active=request['audio_active'])}
             else:result = transform(request, verifier)
             print(json.dumps({'ok': True, **result}, allow_nan=False), flush=True)
         except (ValueError, KeyError, TypeError) as exc:

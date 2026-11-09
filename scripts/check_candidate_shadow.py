@@ -26,7 +26,8 @@ def main():
             assert abs(sum(a*b for a,b in zip(x[key]['rotation_xyzw'],y[key]['rotation_xyzw'])))>1-1e-5
         assert y['decision']['primary_decision_sha256']==hashlib.sha256(json.dumps(x['decision'],sort_keys=True).encode()).hexdigest()
     accepted=[r['proposal'] for r in rows(run/'model_decisions.jsonl') if r['status']=='accepted']
-    mode=json.loads((run/'run_config.json').read_text()).get('control_mode')
+    config=json.loads((run/'run_config.json').read_text());mode=config.get('control_mode')
+    foa_stop=config.get('stop_rule')=='foa_multiview'
     stationary=mode=='stationary_listen_v1'
     segmented=mode in ('synchronous_segments_v1','stationary_listen_v1')
     controlled=[row for row in nav if row['action']!='listen']
@@ -75,6 +76,7 @@ def main():
                 listening_steps=sum(x['action']=='listen' for x in nav),movement_steps=sum(x['action'] not in ('listen','stop') for x in nav))
     else:assert accepted==[x['decision'] for x in nav]
     calls=rows(run/'codex_calls.jsonl');assert all(c['model']=='gpt-6.1-sol' and not c['shadow_visible'] for c in calls)
+    if foa_stop:assert all(c.get('foa_stop_evidence_visible') for c in calls)
     successful_calls=[c for c in calls if c['returncode']==0];assert len(successful_calls)>=len(accepted)
     for c in calls:assert not set(c['item_types'])&{'command_execution','mcp_tool_call','web_search','file_change','collab_tool_call'}
     observed=rows(run/'foa_shadow/observations.jsonl');byid={r['observation_id']:r for r in observed}
@@ -85,6 +87,10 @@ def main():
             assert item['control']['listening_observation_ids']==item['stationary_audio']['observation_ids']==window['observation_ids']
             assert item['control']['latest_pose']==byid[item['observation_id']]['pose']
             assert item['stationary_audio']['same_pose_verified'] and item['stationary_audio']['duration_s']==1
+            if foa_stop:
+                gate=item['stop_verification'];assert gate['method']=='foa-signed-rays-v1'
+                assert 'inferred_source_world_xyz' not in gate
+                assert gate['evidence_id']==item['observation_id']+':foa_stop'
         evidence=rows(run/'shadow.jsonl')
         assert all(x['phase']=='stationary_listen' and x['policy_input_unchanged_verified'] for x in evidence)
     model=json.loads((run/'model.json').read_text());short=model.get('backend')=='avn_foa_short1s'
@@ -112,6 +118,12 @@ def main():
     assert set(actor['mount_destinations'])<=allowed and actor['all_bind_mounts_readonly']
     assert actor['readonly_root'] and actor['user'] not in ('0','0:0','')
     for decision in accepted:assert all(':localization' not in e for e in decision['evidence_ids'])
+    if foa_stop:
+        gates=rows(run/'foa_stop_evidence.jsonl');byanchor={x['at']:x for x in gates}
+        for row in rows(run/'model_decisions.jsonl'):
+            gate=byanchor[row['observation_id']]
+            if row['status']=='accepted' and row['proposal']['action']=='stop':assert gate['ready'] and all(gate['checks'].values())
+            if row['status']=='stop_vetoed':assert not gate['ready']
     for item in rows(run/'model_observations.jsonl'):
         payload=json.dumps(item)
         assert ':localization' not in payload and 'raw_accdoa' not in payload and 'avn_short_context_1s_epoch083' not in payload
@@ -195,6 +207,11 @@ def main():
         conditional_metric_note='Offline renderer-truth diagnostic on numerical RMS>1e-7; overlapping predictions counted, not independent samples; not SELD/F20 or Agent success',
         navigation=evaluation,checkpoint_sha256=model['checkpoint_sha256'])
     if cycle_summary:report['synchronous_control']=cycle_summary
+    if foa_stop:
+        report.update(shadow_not_sent_to_policy=False,raw_localization_not_sent_to_policy=True,
+            localization_used_for_stop_gate=True,localization_used_for_motion_direction=False,
+            foa_stop_ready_anchors=[x['at'] for x in gates if x['ready']],
+            foa_stop_rule_note='Heuristic multi-view signed-ray Euclidean range, not oracle distance or calibrated confidence; STOP still proposed by Agent')
     if runtime_schedule:report['runtime_sound_schedule']=runtime_schedule
     if short:
         first_chair=next((x['output_end_s'] for x in step_rows if x['source_on_evaluation_only'] and 'chair' in x['classes'].split(';')),None)

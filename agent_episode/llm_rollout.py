@@ -203,10 +203,16 @@ def recent_evidence(summary, history, observed):
         refs.update(f'{ident}:{modality}' for modality in ('audio', 'depth', 'pose'))
     for fit in summary['passive_acoustic_fits'].values():
         refs.update(fit.get('supporting_observation_ids', []))
+    if summary.get('stop_verification',{}).get('evidence_id'):
+        refs.add(summary['stop_verification']['evidence_id'])
     return refs & observed
 
 
 def gate_feedback(gate):
+    if gate.get('method')=='foa-signed-rays-v1':
+        return dict(stop_vetoed=True,reason=gate['reason'],
+            failed_arrival_checks=[k for k,v in gate['checks'].items() if not v],
+            stop_rule='signed FOA multiview range; no front/back pairing or depth surface requirement')
     arrival = gate['arrival']
     return {
         'stop_vetoed': True,

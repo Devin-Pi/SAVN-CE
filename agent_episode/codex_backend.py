@@ -41,6 +41,12 @@ class CodexBackend:
                     'Do not treat the aggregate and its four constituent blocks as independent evidence.')
                 instructions=instructions.replace('The first image is current RGB; the second is a stereo evidence panel computed from the current 0.25 s window.',
                     'The first image is latest RGB at the listening pose; the second summarizes the stationary 1s binaural window.')
+        if summary.get('stop_verification',{}).get('method')=='foa-signed-rays-v1':
+            instructions+='\nFor STOP only, use current.stop_verification, computed from past signed FOA directions and observed receiver poses. '
+            instructions+='Do not justify STOP from the old binaural front/back fits or a nearby depth surface. '
+            instructions+='If ready is true, STOP is supported; if false, select a safe movement to obtain useful evidence. '
+            instructions+='The range interval is a heuristic triangulation sensitivity bound, not target truth or calibrated confidence. '
+            instructions+='FOA source coordinates and directions are not supplied for steering. Continue using the allowed RGB-D/binaural observations for navigation.'
         prompt=instructions+'\nYou are only selecting a robot action. Do not use tools, browse, inspect files, or request other agents. Return the final JSON matching the supplied schema.\n'+json.dumps(payload,allow_nan=False,separators=(',',':'))
         command=['docker','exec','-i',self.container,'codex','exec','--model',self.model,'--ephemeral','--skip-git-repo-check',
             '--sandbox','read-only','--json','--color','never','--output-schema','/inputs/schema.json','-C','/inputs']
@@ -62,6 +68,7 @@ class CodexBackend:
         safe_error=re.sub(r'\bsk-[A-Za-z0-9_\-]+','[REDACTED]',result.stderr[-1500:])
         append(self.audit,dict(observation_id=summary['observation_id'],model=self.model,auth_mode='api_key',
             returncode=result.returncode,latency_s=time.monotonic()-started,item_types=item_types,usage=usage,
-            error=safe_error if result.returncode else None,shadow_visible=False,simulator_assets_mounted=False))
+            error=safe_error if result.returncode else None,shadow_visible=False,
+            foa_stop_evidence_visible='stop_verification' in summary,simulator_assets_mounted=False))
         if result.returncode!=0 or not texts:raise RuntimeError('Codex request failed; see codex_calls.jsonl')
         return json.loads(texts[-1]),{k:usage.get(k,0) for k in ('input_tokens','output_tokens')}
