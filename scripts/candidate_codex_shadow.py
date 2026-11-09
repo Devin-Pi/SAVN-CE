@@ -110,6 +110,7 @@ def main():
     p.add_argument('--inputs',type=Path,required=True);p.add_argument('--episode-id',default='1000000008');p.add_argument('--steps',type=int,default=64);p.add_argument('--seed',type=int,default=7)
     p.add_argument('--actor-container',default='savnce_codex_actor_v1',help='Isolated Codex container with this run\'s input directory mounted at /inputs')
     p.add_argument('--sim-gpu',type=int,help='Habitat GPU index inside savnce_dev')
+    p.add_argument('--sim-container',default='savnce_dev',help='Simulator container with the same project and dataset mounts')
     p.add_argument('--episode-file',default=EPISODES,help='Episode .json.gz path in the simulator worktree')
     p.add_argument('--decision-period-s',type=float,choices=(.25,1.),default=.25,help='1 enables synchronous, guarded segments of up to four native steps')
     p.add_argument('--listen-before-decide-s',type=float,choices=(0.,1.),default=0.,help='Collect four fresh fixed-pose blocks before every decision; counts toward --steps')
@@ -145,12 +146,13 @@ def main():
         localization_profile=a.profile,localization_update_period_s=None if a.listen_before_decide_s else (.25 if a.profile=='avn_foa_short1s' else 1),resolution=512,
         decision_period_s=a.decision_period_s,listen_before_decide_s=a.listen_before_decide_s,sound_schedule=a.sound_schedule,control_mode='stationary_listen_v1' if a.listen_before_decide_s else ('synchronous_segments_v1' if a.decision_period_s==1 else 'per_native_step'),
         step_budget_unit='native .25s steps',foa_audio_threads=a.foa_audio_threads,binaural_audio_threads=a.binaural_audio_threads,sim_gpu=a.sim_gpu,
+        simulator_container=a.sim_container,
         source_placement=a.source_placement,navigation_goal=a.navigation_goal,stop_rule=a.stop_rule,foa_tolerance_deg=a.foa_tolerance_deg,
         max_stop_confirmation_retries=int(a.stop_rule=='foa_geometry'),localization_used_for_stop=uses_foa,localization_used_for_motion_direction=False,terminal_foa_facing=uses_foa,
         segment_guards='sensor-only; no target truth'),indent=2)+'\n')
     backend=CodexBackend(a.inputs,out/'codex_calls.jsonl',container=a.actor_container);history=deque(maxlen=8);observed=set()
     device_env=[] if a.sim_gpu is None else ['-e',f'SAVNCE_SIM_GPU={a.sim_gpu}']
-    simcmd=['docker','exec','-i','-e','HABITAT_SIM_LOG=quiet','-e','MAGNUM_LOG=quiet',*device_env,'-w',a.sim_workdir,'savnce_dev','python','-m']
+    simcmd=['docker','exec','-i','-e','HABITAT_SIM_LOG=quiet','-e','MAGNUM_LOG=quiet',*device_env,'-w',a.sim_workdir,a.sim_container,'python','-m']
     with ExitStack() as stack:
         extract=stack.enter_context(jsonl_process(simcmd+['agent_episode.llm_observation'],out/'feature_worker.log'))
         worker=Worker(worker_command('avseld_final_test',a.profile),out/'candidate_worker.log');stack.callback(worker.close)
