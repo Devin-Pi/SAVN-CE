@@ -263,7 +263,7 @@ def main():
                 model_inference_ms=r['timing']['inference']*1000,
                 support_ids=';'.join(r['provenance']['observation_ids'])))
     def stats(values):return dict(count=len(values),mean_error_deg=statistics.mean(values) if values else None,within20=sum(v<=20 for v in values),over90=sum(v>90 for v in values))
-    report=dict(status='passed',episode_id='1000000008',action_count=len(nav),movement_steps=evaluation['movement_steps'],
+    report=dict(status='passed',episode_id=config['episode_id'],action_count=len(nav),movement_steps=evaluation['movement_steps'],
         total_native_steps=len(observed)-1,listening_steps=sum(x['action']=='listen' for x in nav),
         observation_count=len(observed),policy_model='gpt-6.1-sol',actual_successful_codex_requests=len(successful_calls),failed_codex_requests=len(calls)-len(successful_calls),
         pose_and_action_lockstep_verified=True,shadow_not_sent_to_policy=True,actor_has_no_scene_assets=True,

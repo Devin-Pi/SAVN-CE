@@ -205,7 +205,8 @@ class OfficialEpisodeEnv:
         key='savnce_stationary_listen'
         space=self.sim._sim.get_agent(0).agent_config.action_space
         if key not in space:
-            space[key]=habitat_sim.ActionSpec('move_forward',habitat_sim.ActuationSpec(amount=0.0))
+            # Even a zero translation can snap an official start pose to the NavMesh.
+            space[key]=habitat_sim.ActionSpec('turn_left',habitat_sim.ActuationSpec(amount=0.0))
         old=self.observe();before=self.current_state()
         self._native=self.sim.step(key);self.index+=1
         self._last_collision=False;self._last_blocked=False;self._cached=None
