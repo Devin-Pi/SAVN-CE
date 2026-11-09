@@ -108,6 +108,7 @@ def run_segmented(primary,foa,*,sim,shadow,extract,tool,backend,history,observed
 def main():
     p=argparse.ArgumentParser();p.add_argument('--output',type=Path,required=True);p.add_argument('--sim-workdir',required=True)
     p.add_argument('--inputs',type=Path,required=True);p.add_argument('--episode-id',default='1000000008');p.add_argument('--steps',type=int,default=64);p.add_argument('--seed',type=int,default=7)
+    p.add_argument('--actor-container',default='savnce_codex_actor_v1',help='Isolated Codex container with this run\'s input directory mounted at /inputs')
     p.add_argument('--episode-file',default=EPISODES,help='Episode .json.gz path in the simulator worktree')
     p.add_argument('--decision-period-s',type=float,choices=(.25,1.),default=.25,help='1 enables synchronous, guarded segments of up to four native steps')
     p.add_argument('--listen-before-decide-s',type=float,choices=(0.,1.),default=0.,help='Collect four fresh fixed-pose blocks before every decision; counts toward --steps')
@@ -135,7 +136,7 @@ def main():
     if a.output.is_absolute():raise ValueError('Use a path relative to the mounted project worktree')
     a.output.mkdir(parents=True,exist_ok=False);out=a.output
     (out/'run_config.json').write_text(json.dumps(dict(episode_id=a.episode_id,episode_file=a.episode_file,seed=a.seed,max_steps=a.steps,
-        model='gpt-6.1-sol',provider_host='code.ppchat.vip',auth_mode='api_key',policy='existing evidence policy, no yaw probe',
+        model='gpt-6.1-sol',provider_host='code.ppchat.vip',auth_mode='api_key',actor_container=a.actor_container,policy='existing evidence policy, no yaw probe',
         policy_observations='primary RGB-D/binaural/pose; FOA multiview STOP verification' if uses_foa else 'primary RGB-D/binaural/pose; existing passive STOP gate',
         shadow='synchronized FOA env; raw output withheld; derived STOP evidence supplied' if uses_foa else 'separate FOA env, exact same executed actions, never fed to policy',
         input_rate=16000,model_window_s=1 if a.profile=='avn_foa_short1s' else 10,
@@ -145,7 +146,7 @@ def main():
         source_placement=a.source_placement,navigation_goal=a.navigation_goal,stop_rule=a.stop_rule,foa_tolerance_deg=a.foa_tolerance_deg,
         max_stop_confirmation_retries=int(a.stop_rule=='foa_geometry'),localization_used_for_stop=uses_foa,localization_used_for_motion_direction=False,terminal_foa_facing=uses_foa,
         segment_guards='sensor-only; no target truth'),indent=2)+'\n')
-    backend=CodexBackend(a.inputs,out/'codex_calls.jsonl');history=deque(maxlen=8);observed=set()
+    backend=CodexBackend(a.inputs,out/'codex_calls.jsonl',container=a.actor_container);history=deque(maxlen=8);observed=set()
     simcmd=['docker','exec','-i','-e','HABITAT_SIM_LOG=quiet','-e','MAGNUM_LOG=quiet','-w',a.sim_workdir,'savnce_dev','python','-m']
     with ExitStack() as stack:
         extract=stack.enter_context(jsonl_process(simcmd+['agent_episode.llm_observation'],out/'feature_worker.log'))
