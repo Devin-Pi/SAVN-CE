@@ -7,7 +7,7 @@ import copy
 import math
 
 FOA_STOP_METHODS = {'foa_multiview': 'foa-signed-rays-v1', 'foa_geometry': 'foa-signed-rays-v2'}
-DEFAULT_FOA_TOLERANCE_DEG = {'foa_multiview': 15., 'foa_geometry': 5.}
+DEFAULT_FOA_TOLERANCE_DEG = {'foa_multiview': 15., 'foa_geometry': 2.}
 
 
 class FoaArrival:

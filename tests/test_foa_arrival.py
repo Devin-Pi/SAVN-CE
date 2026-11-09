@@ -75,11 +75,11 @@ class FoaArrivalTests(unittest.TestCase):
 
 
 class GeometryArrivalTests(unittest.TestCase):
-    def first_near(self,tolerance=10.):
+    def first_near(self,tolerance=None):
         gate=FoaArrival(rule='foa_geometry',tolerance_deg=tolerance)
         for i,pose in enumerate(POSITIONS[:4]):
             report=gate.update(result(i,pose,label=f'class_{i}'),audio_active=True)
-        self.assertEqual(report['config']['angular_tolerance_deg'],tolerance)
+        self.assertEqual(report['config']['angular_tolerance_deg'],2. if tolerance is None else tolerance)
         self.assertTrue(report['request_stationary_confirmation'],report)
         self.assertFalse(report['ready'])
         self.assertEqual(len(set(report['supporting_classes'])),4)

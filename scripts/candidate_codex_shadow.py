@@ -118,7 +118,8 @@ def main():
                    help='Evaluator navigation goal on the local NavMesh in Habitat XYZ')
     p.add_argument('--binaural-audio-threads',type=int,choices=(1,4),default=4)
     p.add_argument('--foa-audio-threads',type=int,choices=(1,4),default=1,help='Number of FOA acoustic rendering threads')
-    p.add_argument('--foa-tolerance-deg',type=float,help='Default is 15 degrees for foa_multiview or 5 for foa_geometry')
+    tolerances=', '.join(f'{rule}: {degrees:g}°' for rule,degrees in DEFAULT_FOA_TOLERANCE_DEG.items())
+    p.add_argument('--foa-tolerance-deg',type=float,help=f'Ray angular tolerance in degrees (defaults by rule: {tolerances})')
     p.add_argument('--profile',choices=('avn_foa_candidate','avn_foa_short1s'),default='avn_foa_candidate');a=p.parse_args()
     if a.steps<=0:p.error('steps must be positive')
     if a.navigation_goal is not None and (a.source_placement!='object_center' or not all(map(math.isfinite,a.navigation_goal))):
