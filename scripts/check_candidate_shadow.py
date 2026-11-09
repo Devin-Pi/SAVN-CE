@@ -105,7 +105,8 @@ def main():
     else:assert accepted==[x['decision'] for x in nav]
     calls=rows(run/'codex_calls.jsonl');assert all(c['model']=='gpt-6.1-sol' and not c['shadow_visible'] for c in calls)
     if foa_stop:assert all(c.get('foa_stop_evidence_visible') for c in calls)
-    successful_calls=[c for c in calls if c['returncode']==0];assert len(successful_calls)>=len(accepted)
+    successful_calls=[c for c in calls if c['returncode']==0 and 'agent_message' in c['item_types']]
+    assert len(successful_calls)>=len(accepted)
     for c in calls:assert not set(c['item_types'])&{'command_execution','mcp_tool_call','web_search','file_change','collab_tool_call'}
     observed=rows(run/'foa_shadow/observations.jsonl');byid={r['observation_id']:r for r in observed}
     if stationary:
