@@ -10,7 +10,7 @@ from savnce.datasets.savnce_dataset import SAVNCE_Dataset
 from savnce.tasks.savnce_task import merge_sim_episode_config
 from savnce.sims.savnce_simulator import SAVNCE_Simulator
 from .foa import audio_format, to_ambix
-from .sound_schedule import resolve_sound_schedule
+from .sound_schedule import SOUND_SCHEDULES, resolve_sound_schedule
 
 ACTIONS={0:'stop',1:'move_forward',2:'turn_left',3:'turn_right'}
 DEFAULT_EPISODES='audit/official_samples/savnce_dataset/mp3d/v1/train/content/17DRP5sb8fy.json.gz'
@@ -42,7 +42,7 @@ class OfficialEpisodeEnv:
                     or len(navigation_goal)!=3 or any(type(v) not in (float,int) or not math.isfinite(v) for v in navigation_goal)):
                 raise ValueError('Navigation goal override requires object_center and finite Habitat XYZ')
         self.navigation_goal = navigation_goal
-        if sound_schedule not in ('episode','sustained'):raise ValueError('Unknown sound schedule')
+        if sound_schedule not in SOUND_SCHEDULES:raise ValueError('Unknown sound schedule')
         self.sound_schedule=sound_schedule
         self.audio_key = 'foa_audio' if audio_mode == 'foa' else 'binaural_audio'
         self.output=Path(output)

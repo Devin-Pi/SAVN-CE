@@ -10,6 +10,7 @@ from codex_backend import CodexBackend
 from localization_tool import LocalizationTool,Worker,compact,worker_command
 from synchronous_control import run_synchronous
 from foa_arrival import DEFAULT_FOA_TOLERANCE_DEG,FOA_STOP_METHODS,policy_evidence
+from sound_schedule import SOUND_SCHEDULES
 
 
 def assert_pose(primary,foa):
@@ -110,7 +111,8 @@ def main():
     p.add_argument('--episode-file',default=EPISODES,help='Episode .json.gz path in the simulator worktree')
     p.add_argument('--decision-period-s',type=float,choices=(.25,1.),default=.25,help='1 enables synchronous, guarded segments of up to four native steps')
     p.add_argument('--listen-before-decide-s',type=float,choices=(0.,1.),default=0.,help='Collect four fresh fixed-pose blocks before every decision; counts toward --steps')
-    p.add_argument('--sound-schedule',choices=('episode','sustained'),default='episode',help='sustained preserves onset, extends runtime offset beyond the budget; original episode unchanged')
+    p.add_argument('--sound-schedule',choices=SOUND_SCHEDULES,default='episode',
+                   help='sustained preserves onset; continuous starts at 0 s; both cover the runtime budget')
     p.add_argument('--stop-rule',choices=('legacy',*FOA_STOP_METHODS),default='legacy')
     p.add_argument('--source-placement',choices=('episode','object_center'),default='episode',
                    help='Use the episode source or place it 1.5 m above the semantic object center')
