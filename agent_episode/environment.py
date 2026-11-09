@@ -4,6 +4,7 @@ import copy,gzip,json,runpy,hashlib,math
 import numpy as np
 import soundfile as sf
 import imageio.v2 as imageio
+import habitat_sim
 from habitat_sim.utils.common import quat_to_coeffs
 from savnce.datasets.savnce_dataset import SAVNCE_Dataset
 from savnce.tasks.savnce_task import merge_sim_episode_config
@@ -13,6 +14,15 @@ from .sound_schedule import resolve_sound_schedule
 
 ACTIONS={0:'stop',1:'move_forward',2:'turn_left',3:'turn_right'}
 DEFAULT_EPISODES='audit/official_samples/savnce_dataset/mp3d/v1/train/content/17DRP5sb8fy.json.gz'
+_LISTEN_ACTION='savnce_stationary_listen'
+
+
+@habitat_sim.registry.register_move_fn(name=_LISTEN_ACTION,body_action=False)
+class _StationaryListen(habitat_sim.SceneNodeControl):
+    def __call__(self, scene_node, actuation_spec):
+        # Body controls invoke NavMesh filtering even for zero movement.
+        pass
+
 
 class OfficialEpisodeEnv:
     def __init__(self,output,episode_id='410',resolution=256,max_steps=64,seed=7,episodes_path=DEFAULT_EPISODES,private_output=None,*,audio_mode='binaural',sound_schedule='episode',audio_threads=None,source_placement='episode',navigation_goal=None):
@@ -201,21 +211,18 @@ class OfficialEpisodeEnv:
         implementation remain unchanged.
         """
         if self.done:raise RuntimeError('Episode finished')
-        import habitat_sim
-        key='savnce_stationary_listen'
         space=self.sim._sim.get_agent(0).agent_config.action_space
-        if key not in space:
-            # Even a zero translation can snap an official start pose to the NavMesh.
-            space[key]=habitat_sim.ActionSpec('turn_left',habitat_sim.ActuationSpec(amount=0.0))
+        if _LISTEN_ACTION not in space:
+            space[_LISTEN_ACTION]=habitat_sim.ActionSpec(_LISTEN_ACTION,habitat_sim.ActuationSpec(amount=0.0))
         old=self.observe();before=self.current_state()
-        self._native=self.sim.step(key);self.index+=1
+        self._native=self.sim.step(_LISTEN_ACTION);self.index+=1
         self._last_collision=False;self._last_blocked=False;self._cached=None
         new=self.observe();after=self.current_state()
         if not np.allclose(before['pose']['position'],after['pose']['position'],rtol=0,atol=1e-7) or not np.allclose(before['pose']['rotation_xyzw'],after['pose']['rotation_xyzw'],rtol=0,atol=1e-7):
             raise RuntimeError('Stationary listening changed robot pose')
         self.done=self.index>=self.max_steps
         if not hasattr(self,'_actions'):self._actions=[]
-        row=dict(transition_id=f'transition_{len(self._actions):04d}',observation_before=old['observation_id'],action_id=key,action='listen',observation_after=new['observation_id'],pose_before=old['pose'],pose_after=new['pose'],translation_m=0.0,collision=False,forward_blocked=False,done=self.done,decision=decision)
+        row=dict(transition_id=f'transition_{len(self._actions):04d}',observation_before=old['observation_id'],action_id=_LISTEN_ACTION,action='listen',observation_after=new['observation_id'],pose_before=old['pose'],pose_after=new['pose'],translation_m=0.0,collision=False,forward_blocked=False,done=self.done,decision=decision)
         self._actions.append(row)
         with (self.output/'actions.jsonl').open('a') as f:f.write(json.dumps(row)+'\n')
         return new,self.done
