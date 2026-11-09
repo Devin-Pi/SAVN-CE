@@ -46,6 +46,24 @@ class StationaryTests(unittest.TestCase):
         h=StationaryHarness(budget=16,action='stop');obs,cycles=h.run()
         self.assertEqual((obs['step'],cycles,len(h.listens),len(h.steps)),(4,1,4,1))
         self.assertEqual(h.events[-1]['advanced_sim_time_s'],0)
+    def confirmation_run(self,budget):
+        h=StationaryHarness(budget=budget,action='stop')
+        def aggregate(obs,window,data):
+            h.aggregate(obs,window,data)
+            return dict(data,stop_gate={'request_stationary_confirmation':obs['step']==4,'ready':obs['step']==8})
+        obs,cycles=Harness.run(h,listen_advance=h.listen,after_listen=aggregate,log_listening=h.acquisitions.append)
+        return h,obs,cycles
+    def test_near_window_defers_agent_until_new_stationary_window(self):
+        h,obs,cycles=self.confirmation_run(16)
+        self.assertEqual((obs['step'],cycles,len(h.steps)),(8,1,1))
+        self.assertEqual([a['purpose'] for a in h.acquisitions[1::2]],['decision','stop_confirmation'])
+        control=h.inputs[0]['summary']['control']
+        self.assertEqual(control['first_near_anchor'],'obs_0004')
+        self.assertEqual(control['listening_observation_ids'],[f'obs_{i:04d}' for i in range(5,9)])
+    def test_confirmation_cannot_exceed_native_budget(self):
+        h,obs,cycles=self.confirmation_run(6)
+        self.assertEqual((obs['step'],cycles,len(h.inputs),len(h.windows)),(6,0,0,1))
+        self.assertFalse(h.acquisitions[-1]['complete'])
     def test_pose_drift_in_listening_fails_before_policy(self):
         h=StationaryHarness()
         def move(cycle):

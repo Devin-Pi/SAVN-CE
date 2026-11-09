@@ -13,8 +13,10 @@ import urllib.error
 import urllib.request
 
 if __package__:
+    from .foa_arrival import FOA_STOP_METHODS
     from .localization_tool import FUNCTION, MODEL_NAME, LocalizationTool, Worker, compact, worker_command
 else:
+    from foa_arrival import FOA_STOP_METHODS
     from localization_tool import FUNCTION, MODEL_NAME, LocalizationTool, Worker, compact, worker_command
 
 
@@ -209,7 +211,7 @@ def recent_evidence(summary, history, observed):
 
 
 def gate_feedback(gate):
-    if gate.get('method')=='foa-signed-rays-v1':
+    if gate.get('method') in FOA_STOP_METHODS.values():
         return dict(stop_vetoed=True,reason=gate['reason'],
             failed_arrival_checks=[k for k,v in gate['checks'].items() if not v],
             stop_rule='signed FOA multiview range; no front/back pairing or depth surface requirement')

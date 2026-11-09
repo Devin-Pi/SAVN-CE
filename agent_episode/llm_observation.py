@@ -222,14 +222,17 @@ def stationary_summary(observations):
 
 def main():
     verifier = PassiveArrival()
-    foa_verifier = FoaArrival()
+    foa_verifiers = {}
     for line in sys.stdin:
         try:
             request=json.loads(line)
             if request.get('command')=='stationary_summary':
                 result=stationary_summary(request['observations'])
             elif request.get('command')=='foa_stop_gate':
-                result={'gate':foa_verifier.update(request['result'],audio_active=request['audio_active'])}
+                config=(request.get('rule','foa_multiview'),request.get('tolerance_deg'))
+                if config not in foa_verifiers:
+                    foa_verifiers[config]=FoaArrival(rule=config[0],tolerance_deg=config[1])
+                result={'gate':foa_verifiers[config].update(request['result'],audio_active=request['audio_active'])}
             else:result = transform(request, verifier)
             print(json.dumps({'ok': True, **result}, allow_nan=False), flush=True)
         except (ValueError, KeyError, TypeError) as exc:

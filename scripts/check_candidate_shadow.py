@@ -1,9 +1,12 @@
 """Post-run audit; privileged truth is read only after both native environments close."""
-import argparse,hashlib,json,math,statistics,subprocess,csv
+import argparse,hashlib,json,math,statistics,subprocess,csv,sys
 from pathlib import Path
 from collections import Counter
 import numpy as np
 import jsonschema
+
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from agent_episode.foa_arrival import FOA_STOP_METHODS
 
 
 def rows(p):return [json.loads(s) for s in p.read_text().splitlines()]
@@ -27,11 +30,12 @@ def main():
         assert y['decision']['primary_decision_sha256']==hashlib.sha256(json.dumps(x['decision'],sort_keys=True).encode()).hexdigest()
     accepted=[r['proposal'] for r in rows(run/'model_decisions.jsonl') if r['status']=='accepted']
     config=json.loads((run/'run_config.json').read_text());mode=config.get('control_mode')
-    foa_stop=config.get('stop_rule')=='foa_multiview'
+    foa_method=FOA_STOP_METHODS.get(config.get('stop_rule'))
+    foa_stop=foa_method is not None
     stationary=mode=='stationary_listen_v1'
     segmented=mode in ('synchronous_segments_v1','stationary_listen_v1')
     controlled=[row for row in nav if row['action']!='listen']
-    listening_windows=[]
+    listening_windows=[];confirmation_windows=[]
     if stationary:
         acquisition=rows(run/'listening_cycles.jsonl');assert len(acquisition)%2==0
         for start,end in zip(acquisition[::2],acquisition[1::2]):
@@ -45,6 +49,13 @@ def main():
             assert [x['observation_after'] for x in block]==end['observation_ids']
             assert all(x['pose_before']==x['pose_after']==start['state']['pose'] for x in block)
             assert end['audio_interval_s'][1]-end['audio_interval_s'][0]==n*.25
+            if end.get('purpose')=='stop_confirmation':
+                first=listening_windows[-1]
+                assert start.get('purpose')=='stop_confirmation'
+                assert first['cycle']==end['cycle'] and first['purpose']=='decision'
+                assert first['final_state']==start['state'] and first['audio_interval_s'][1]==end['audio_interval_s'][0]
+                assert not set(first['observation_ids'])&set(end['observation_ids'])
+                confirmation_windows.append((first,end))
             if end['complete']:listening_windows.append(end)
     cycle_summary=None
     if segmented:
@@ -72,7 +83,7 @@ def main():
             segment_duration_s=durations,segment_end_reasons=dict(reasons),native_step_s=.25,nominal_decision_period_s=1)
         if stationary:
             cycle_summary.update(mode=mode,nominal_decision_period_s=None,listening_window_s=1,
-                complete_stationary_windows=len(listening_windows),fixed_pose_for_all_windows=True,
+                complete_stationary_windows=len(listening_windows),stop_confirmation_windows=len(confirmation_windows),fixed_pose_for_all_windows=True,
                 listening_steps=sum(x['action']=='listen' for x in nav),movement_steps=sum(x['action'] not in ('listen','stop') for x in nav))
     else:assert accepted==[x['decision'] for x in nav]
     calls=rows(run/'codex_calls.jsonl');assert all(c['model']=='gpt-6.1-sol' and not c['shadow_visible'] for c in calls)
@@ -88,7 +99,7 @@ def main():
             assert item['control']['latest_pose']==byid[item['observation_id']]['pose']
             assert item['stationary_audio']['same_pose_verified'] and item['stationary_audio']['duration_s']==1
             if foa_stop:
-                gate=item['stop_verification'];assert gate['method']=='foa-signed-rays-v1'
+                gate=item['stop_verification'];assert gate['method']==foa_method
                 assert 'inferred_source_world_xyz' not in gate
                 assert gate['evidence_id']==item['observation_id']+':foa_stop'
         evidence=rows(run/'shadow.jsonl')
@@ -127,6 +138,17 @@ def main():
             assert len(current)==4 and all(x in byid for x in current)
             assert row['evidence_id']==byanchor[anchor]['evidence_id'] and not row['new_physical_observation']
             assert all(x in byanchor and byid[x]['step']<=byid[anchor]['step'] for x in row['supporting_anchor_ids'])
+        if config.get('stop_rule')=='foa_geometry':
+            model_inputs={r['observation_id']:r for r in rows(run/'model_observations.jsonl')}
+            assert all(g['config']['angular_tolerance_deg']==config['foa_tolerance_deg'] for g in gates)
+            for first,second in confirmation_windows:
+                anchor=first['final_state']['observation_id']
+                assert byanchor[anchor]['request_stationary_confirmation'] and not byanchor[anchor]['ready']
+                assert anchor not in model_inputs
+                final=second['final_state']['observation_id']
+                if final in model_inputs:
+                    assert second['complete'] and model_inputs[final]['control']['first_near_anchor']==anchor
+            assert {r['at'] for r in gates if r.get('ready')}<={second['final_state']['observation_id'] for _,second in confirmation_windows}
         for row in rows(run/'model_observations.jsonl'):
             supplied=row['stop_verification'];gate=byanchor[row['observation_id']]
             allowed={'method','evidence_id','ready','reason','checks','estimated_range_interval_m','calibration_status'}

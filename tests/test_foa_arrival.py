@@ -74,4 +74,44 @@ class FoaArrivalTests(unittest.TestCase):
         self.assertFalse(r['ready']);self.assertIn('Overlapping',r['reason'])
 
 
+class GeometryArrivalTests(unittest.TestCase):
+    def first_near(self):
+        gate=FoaArrival(rule='foa_geometry')
+        for i,pose in enumerate(POSITIONS[:4]):
+            report=gate.update(result(i,pose,label=f'class_{i}'),audio_active=True)
+        self.assertEqual(report['config']['angular_tolerance_deg'],10.)
+        self.assertTrue(report['request_stationary_confirmation'],report)
+        self.assertFalse(report['ready'])
+        self.assertEqual(len(set(report['supporting_classes'])),4)
+        self.assertNotIn('feasible_xz_samples',policy_evidence(report))
+        return gate
+
+    def test_geometry_confirmation_allows_class_change(self):
+        gate=self.first_near()
+        again=result(4,POSITIONS[3],label='different_again')
+        again['timing'].update(audio_start_s=7.25,audio_end_s=8.25)
+        report=gate.update(again,audio_active=True)
+        self.assertTrue(report['ready'],report)
+        self.assertEqual(report['confirmation_count'],2)
+
+    def test_confirmation_needs_same_pose_and_consecutive_window(self):
+        for origin,delta in ((POSITIONS[4],0.),(POSITIONS[3],.25)):
+            gate=self.first_near()
+            again=result(4,origin)
+            again['timing'].update(audio_start_s=7.25+delta,audio_end_s=8.25+delta)
+            self.assertFalse(gate.update(again,audio_active=True)['ready'])
+
+    def test_signed_outlier_is_excluded(self):
+        gate=FoaArrival(rule='foa_geometry')
+        for i,pose in enumerate(POSITIONS[:4]):
+            packet=result(i,pose)
+            if i==0:
+                event=packet['events'][0][0]
+                event['direction_unit_habitat_xyz']=(-np.array(event['direction_unit_habitat_xyz'])).tolist()
+            report=gate.update(packet,audio_active=True)
+        self.assertTrue(report['request_stationary_confirmation'],report)
+        self.assertEqual(len(report['support_ids']),3)
+        self.assertNotIn('obs_0004',report['support_ids'])
+
+
 if __name__=='__main__':unittest.main()

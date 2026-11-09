@@ -2,8 +2,10 @@
 import base64,json,re,subprocess,time
 from pathlib import Path
 try:
+    from .foa_arrival import FOA_STOP_METHODS
     from .llm_rollout import INSTRUCTIONS,decision_schema,append
 except ImportError:
+    from foa_arrival import FOA_STOP_METHODS
     from llm_rollout import INSTRUCTIONS,decision_schema,append
 
 
@@ -41,7 +43,7 @@ class CodexBackend:
                     'Do not treat the aggregate and its four constituent blocks as independent evidence.')
                 instructions=instructions.replace('The first image is current RGB; the second is a stereo evidence panel computed from the current 0.25 s window.',
                     'The first image is latest RGB at the listening pose; the second summarizes the stationary 1s binaural window.')
-        if summary.get('stop_verification',{}).get('method')=='foa-signed-rays-v1':
+        if summary.get('stop_verification',{}).get('method') in FOA_STOP_METHODS.values():
             instructions+='\nFor STOP only, use current.stop_verification, computed from past signed FOA directions and observed receiver poses. '
             instructions+='Do not justify STOP from the old binaural front/back fits or a nearby depth surface. '
             instructions+='If ready is true, STOP is supported; if false, select a safe movement to obtain useful evidence. '

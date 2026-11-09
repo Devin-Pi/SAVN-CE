@@ -41,31 +41,41 @@ def run_synchronous(initial, *, prepare, decide, advance, read_current,
         raise ValueError('No remaining native step budget')
     obs = initial
     data = prepare(obs)
+    if listen_advance is not None and (after_listen is None or log_listening is None):
+        raise ValueError('Stationary mode requires acquisition callbacks')
+
+    def collect_listening(cycle, purpose):
+        nonlocal obs, data
+        start=observation_state(obs);window=[];done=False
+        log_listening(dict(event='listening_started',cycle=cycle,purpose=purpose,state=start))
+        for _ in range(min(4,max_steps-obs['step'])):
+            previous=obs
+            obs,done=listen_advance(cycle)
+            if obs['step']!=previous['step']+1 or not math.isclose(obs['timestamp_s']-previous['timestamp_s'],dt_s):
+                raise RuntimeError('Listening did not advance one native audio step')
+            if math.dist(obs['pose']['position'],start['pose']['position'])>1e-7 or math.dist(obs['pose']['rotation_xyzw'],start['pose']['rotation_xyzw'])>1e-7:
+                raise RuntimeError('Robot pose changed during stationary acquisition')
+            window.append(observation_state(obs));data=prepare(obs)
+            if done:break
+        listening=dict(event='listening_finished',cycle=cycle,purpose=purpose,start_state=start,final_state=observation_state(obs),
+            native_steps=len(window),advanced_sim_time_s=len(window)*dt_s,complete=len(window)==4,
+            observation_ids=[x['observation_id'] for x in window],
+            audio_interval_s=[window[0]['timestamp_s'],window[-1]['timestamp_s']+dt_s],unchanged_pose_verified=True)
+        log_listening(listening)
+        if len(window)==4:data=after_listen(obs,window,data)
+        return listening,done or obs['step']>=max_steps
+
     cycle = 0
     while obs['step'] < max_steps:
         listening=None
+        first_near_anchor=None
         if listen_advance is not None:
-            if after_listen is None or log_listening is None:
-                raise ValueError('Stationary mode requires acquisition callbacks')
-            start=observation_state(obs);window=[];done=False
-            log_listening(dict(event='listening_started',cycle=cycle,state=start))
-            for _ in range(min(4,max_steps-obs['step'])):
-                previous=obs
-                obs,done=listen_advance(cycle)
-                if obs['step']!=previous['step']+1 or not math.isclose(obs['timestamp_s']-previous['timestamp_s'],dt_s):
-                    raise RuntimeError('Listening did not advance one native audio step')
-                if math.dist(obs['pose']['position'],start['pose']['position'])>1e-7 or math.dist(obs['pose']['rotation_xyzw'],start['pose']['rotation_xyzw'])>1e-7:
-                    raise RuntimeError('Robot pose changed during stationary acquisition')
-                window.append(observation_state(obs));data=prepare(obs)
-                if done:break
-            listening=dict(event='listening_finished',cycle=cycle,start_state=start,final_state=observation_state(obs),
-                native_steps=len(window),advanced_sim_time_s=len(window)*dt_s,complete=len(window)==4,
-                observation_ids=[x['observation_id'] for x in window],
-                audio_interval_s=[window[0]['timestamp_s'],window[-1]['timestamp_s']+dt_s],unchanged_pose_verified=True)
-            log_listening(listening)
-            if len(window)==4:data=after_listen(obs,window,data)
-            if done or obs['step']>=max_steps:break
-            if len(window)!=4:raise RuntimeError('Incomplete listening window cannot reach policy')
+            listening,exhausted=collect_listening(cycle,'decision')
+            if exhausted:break
+            if data['stop_gate'].get('request_stationary_confirmation'):
+                first_near_anchor=obs['observation_id']
+                listening,exhausted=collect_listening(cycle,'stop_confirmation')
+                if exhausted:break
         before = observation_state(obs)
         assert_frozen(obs, read_current())
         cap = min(round(ratio), max_steps - obs['step'])
@@ -86,6 +96,8 @@ def run_synchronous(initial, *, prepare, decide, advance, read_current,
                 listening_observation_ids=listening['observation_ids'],
                 listening_audio_interval_s=listening['audio_interval_s'],
                 listening_duration_s=1.,listening_pose_unchanged_verified=True)
+            if first_near_anchor is not None:
+                control.update(first_near_anchor=first_near_anchor,stop_confirmation_listen_s=1.)
         decision_data = copy.deepcopy(data)
         decision_data['summary']['control'] = control
         started = time.time()
