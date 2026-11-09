@@ -1,6 +1,6 @@
 """Step-level official SAVN-CE environment; privileged truth is not in observations."""
 from pathlib import Path
-import copy,gzip,json,runpy,hashlib,math
+import copy,gzip,json,runpy,hashlib,math,os
 import numpy as np
 import soundfile as sf
 import imageio.v2 as imageio
@@ -65,6 +65,8 @@ class OfficialEpisodeEnv:
         dataset=SAVNCE_Dataset(cfg.DATASET)
         self._episode=next(e for e in dataset.episodes if str(e.episode_id)==self.episode_id)
         c=cfg.SIMULATOR;c.TYPE='SAVNCE_Simulator';c.AGENT_0.SENSORS=['RGB_SENSOR','DEPTH_SENSOR']
+        if 'SAVNCE_SIM_GPU' in os.environ:
+            c.HABITAT_SIM_V0.GPU_DEVICE_ID=int(os.environ['SAVNCE_SIM_GPU'])
         c.RGB_SENSOR.WIDTH=c.RGB_SENSOR.HEIGHT=self.resolution;c.DEPTH_SENSOR.WIDTH=c.DEPTH_SENSOR.HEIGHT=self.resolution
         c.AUDIO.MIC_TYPE='ambisonics' if self.audio_mode == 'foa' else 'binaural';c.AUDIO.THREADS=self.audio_threads;c.AUDIO.EVERLASTING=False;c.AUDIO.HAS_DISTRACTOR_SOUND=False;c.AUDIO.HAS_NOISE_SOUND=False
         c.AUDIO.SOURCE_SOUND_DIR=str(Path('data/sounds/semantic_splits').resolve())

@@ -54,7 +54,15 @@ class CodexBackend:
             '--sandbox','read-only','--json','--color','never','--output-schema','/inputs/schema.json','-C','/inputs']
         for i in range(len(images)):command+=['--image',f'/inputs/image_{i}.png']
         command+=['-']
-        started=time.monotonic();result=subprocess.run(command,input=prompt,capture_output=True,text=True,timeout=150)
+        started=time.monotonic()
+        try:
+            result=subprocess.run(command,input=prompt,capture_output=True,text=True,timeout=150)
+        except subprocess.TimeoutExpired as exc:
+            append(self.audit,dict(observation_id=summary['observation_id'],model=self.model,auth_mode='api_key',
+                returncode=None,latency_s=time.monotonic()-started,item_types=[],error='Codex request timed out',
+                shadow_visible=False,foa_stop_evidence_visible='stop_verification' in summary,
+                simulator_assets_mounted=False))
+            raise RuntimeError('Codex request timed out; see codex_calls.jsonl') from exc
         events=[]
         for line in result.stdout.splitlines():
             try:events.append(json.loads(line))
