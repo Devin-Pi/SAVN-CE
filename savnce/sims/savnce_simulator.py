@@ -649,7 +649,7 @@ class SAVNCE_Simulator(Simulator, ABC):
     def get_agent(self, agent_id):
         return self._sim.get_agent(agent_id)
 
-    def reconfigure(self, config: Config) -> None:
+    def reconfigure(self, config: Config, *, acoustic_source_position=None) -> None:
         # was called before the start of the episode
         logging.debug('Reconfigure')
         self.config = config
@@ -697,8 +697,13 @@ class SAVNCE_Simulator(Simulator, ABC):
         self._episode_step_count = 0
         self._audio_index = 0
         audio_sensor = self._sim.get_agent(0)._sensors[self._audio_goal_sensor_uuid]
-        # 1.5 is the offset for the height
-        audio_sensor.setAudioSourceTransform(np.array(self.config.AGENT_0.GOAL_POSITION) + np.array([0, 1.5, 0]))
+        if acoustic_source_position is None:
+            acoustic_source_position = np.asarray(config.AGENT_0.GOAL_POSITION) + [0., 1.5, 0.]
+        source_position = np.asarray(acoustic_source_position, dtype=float)
+        if source_position.shape != (3,) or not np.isfinite(source_position).all():
+            raise ValueError("Expected a finite acoustic source position in Habitat XYZ")
+        self.acoustic_source_position = source_position.tolist()
+        audio_sensor.setAudioSourceTransform(source_position)
         self._filtered_source_signal = np.zeros(
             (
                 self._num_samples_per_step * (self._max_episode_steps + 20),

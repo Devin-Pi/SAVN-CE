@@ -15,7 +15,7 @@ ACTIONS={0:'stop',1:'move_forward',2:'turn_left',3:'turn_right'}
 DEFAULT_EPISODES='audit/official_samples/savnce_dataset/mp3d/v1/train/content/17DRP5sb8fy.json.gz'
 
 class OfficialEpisodeEnv:
-    def __init__(self,output,episode_id='410',resolution=256,max_steps=64,seed=7,episodes_path=DEFAULT_EPISODES,private_output=None,*,audio_mode='binaural',sound_schedule='episode',audio_threads=None):
+    def __init__(self,output,episode_id='410',resolution=256,max_steps=64,seed=7,episodes_path=DEFAULT_EPISODES,private_output=None,*,audio_mode='binaural',sound_schedule='episode',audio_threads=None,source_placement='episode'):
         if audio_mode not in ('binaural', 'foa'):
             raise ValueError("audio_mode must be 'binaural' or 'foa'")
         self.audio_mode = audio_mode
@@ -24,6 +24,9 @@ class OfficialEpisodeEnv:
         if type(audio_threads) is not int or audio_threads < 1:
             raise ValueError('audio_threads must be a positive integer')
         self.audio_threads = audio_threads
+        if source_placement not in ('episode','object_center'):
+            raise ValueError('Unknown acoustic source placement')
+        self.source_placement = source_placement
         if sound_schedule not in ('episode','sustained'):raise ValueError('Unknown sound schedule')
         self.sound_schedule=sound_schedule
         self.audio_key = 'foa_audio' if audio_mode == 'foa' else 'binaural_audio'
@@ -57,7 +60,13 @@ class OfficialEpisodeEnv:
         c.AGENT_0.ONSET=self.runtime_sound_schedule['runtime_onset_s'];c.AGENT_0.OFFSET=self.runtime_sound_schedule['runtime_offset_s']
         (self.output/'sound_schedule.json').write_text(json.dumps(self.runtime_sound_schedule,indent=2)+'\n')
         cfg.freeze();self.config=c
-        self.sim=SAVNCE_Simulator(c);self.sim.seed(self.seed);self.sim.reconfigure(c);self._native=self.sim.reset()
+        self.sim=SAVNCE_Simulator(c)
+        self.sim.seed(self.seed)
+        acoustic_source=None
+        if self.source_placement=='object_center':
+            acoustic_source=self._place_source_at_object()
+        self.sim.reconfigure(c,acoustic_source_position=acoustic_source)
+        self._native=self.sim.reset()
         self.dt=c.STEP_TIME;self.sr=c.AUDIO.RIR_SAMPLING_RATE
         if self.audio_mode == 'foa':
             self.audio_format = dict(audio_format(self.sr, self.dt), rendering_threads=self.audio_threads)
@@ -66,11 +75,31 @@ class OfficialEpisodeEnv:
         raw=json.loads(gzip.open(self._episode_path,'rt').read())
         original=next(e for e in raw['episodes'] if str(e['episode_id'])==self.episode_id)
         source=Path(c.AUDIO.SOURCE_SOUND_DIR)/self._episode.goals[0].sound_id
-        truth={'official_episode':original,'episode_file':str(self._episode_path),'episode_file_sha256':hashlib.sha256(self._episode_path.read_bytes()).hexdigest(),'source_wav_sha256':hashlib.sha256(source.read_bytes()).hexdigest(),'runtime_goal_position':self._episode.goals[0].position,'acoustic_source_position':(np.array(self._episode.goals[0].position)+[0,1.5,0]).tolist(),'initial_geodesic_distance':self.initial_distance,'agent_receives_ground_truth':False,'is_author_official_benchmark':self._episode_path==Path(DEFAULT_EPISODES),'association':'official object/sound association; task may be newly generated'}
+        truth={'official_episode':original,'episode_file':str(self._episode_path),'episode_file_sha256':hashlib.sha256(self._episode_path.read_bytes()).hexdigest(),'source_wav_sha256':hashlib.sha256(source.read_bytes()).hexdigest(),'runtime_goal_position':self._episode.goals[0].position,'acoustic_source_position':self.sim.acoustic_source_position,'source_placement':self.source_placement,'initial_geodesic_distance':self.initial_distance,'agent_receives_ground_truth':False,'is_author_official_benchmark':self._episode_path==Path(DEFAULT_EPISODES),'association':'official object/sound association; task may be newly generated'}
         truth['runtime_sound_schedule']=self.runtime_sound_schedule
         (self.private_output/'evaluation_truth.json').write_text(json.dumps(truth,indent=2)+'\n')
         (self.private_output/'resolved_simulator.yaml').write_text(str(c))
         return self.observe()
+
+    def _place_source_at_object(self):
+        goal=self._episode.goals[0]
+        matches=[obj for obj in self.sim._sim.semantic_scene.objects if obj is not None
+                 and obj.id.rsplit('_',1)[-1]==str(goal.object_id)]
+        if len(matches)!=1 or matches[0].category.name()!=goal.object_category:
+            raise ValueError('Episode goal does not uniquely match the scene semantic object')
+        center=np.asarray(matches[0].aabb.center,dtype=float)
+        if center.shape!=(3,) or not np.isfinite(center).all():
+            raise ValueError('Invalid scene object center')
+        original=np.asarray(goal.position,dtype=np.float32)
+        nav=np.asarray(self.sim.pathfinder.snap_point(original),dtype=float)
+        if (not np.isfinite(nav).all() or np.linalg.norm((nav-original)[[0,2]])>.02
+                or abs(nav[1]-original[1])>.3):
+            raise ValueError('Episode goal does not project onto its local NavMesh surface')
+        goal.position=nav.tolist()
+        self.config.defrost()
+        self.config.AGENT_0.GOAL_POSITION=goal.position
+        self.config.freeze()
+        return (center+[0.,1.5,0.]).tolist()
 
     def _distance(self):return float(self.sim.geodesic_distance(self.sim.get_agent_state().position,[self._episode.goals[0].position]))
 
