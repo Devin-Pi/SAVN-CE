@@ -26,9 +26,20 @@ def interruption(action, data, obs):
     return None
 
 
+def horizontal_yaw_deg(pose, point):
+    """Shortest signed yaw from observed forward to the estimated source."""
+    x,y,z,w=pose['rotation_xyzw']
+    fx,fz=-2*(x*z+y*w),2*(x*x+y*y)-1
+    tx=point[0]-pose['position'][0]
+    tz=point[2]-pose['position'][2]
+    if not all(math.isfinite(v) for v in (fx,fz,tx,tz)) or min(math.hypot(fx,fz),math.hypot(tx,tz))<1e-6:
+        return None
+    return math.degrees(math.atan2(fz*tx-fx*tz,fx*tx+fz*tz))
+
+
 def run_synchronous(initial, *, prepare, decide, advance, read_current,
                     before_action, log_event, max_steps, period_s=1., dt_s=.25,
-                    listen_advance=None, after_listen=None, log_listening=None):
+                    listen_advance=None, after_listen=None, log_listening=None, face_on_stop=False):
     """Callbacks stay serialized; only advance() may move the simulator.
 
     One accepted primitive is held for <=4 native steps. The policy is told the
@@ -89,7 +100,8 @@ def run_synchronous(initial, *, prepare, decide, advance, read_current,
                        max_segment_duration_s=cap*dt_s,
                        action_semantics=dict(move_forward=f'up to {cap} x 0.25m',
                                              turn_left=f'up to {cap} x 15deg',
-                                             turn_right=f'up to {cap} x 15deg', stop='immediate'),
+                                             turn_right=f'up to {cap} x 15deg',
+                                             stop='face estimated source in place then stop' if face_on_stop else 'immediate'),
                        latest_pose=copy.deepcopy(obs['pose']),
                        pose_timestamp_s=obs['timestamp_s'],
                        current_audio_interval_s=[obs['timestamp_s'], obs['timestamp_s']+dt_s],
@@ -124,6 +136,7 @@ def run_synchronous(initial, *, prepare, decide, advance, read_current,
                        wall_time_s=time.time(), frozen_verified=True, decision_sha256=digest,
                        max_native_steps=cap, decision=decision))
         executed = 0
+        stop_facing = {}
         reason = 'period_complete'
         done = False
         while executed < cap:
@@ -138,9 +151,29 @@ def run_synchronous(initial, *, prepare, decide, advance, read_current,
                 break
             before_action(obs, decision)
             previous = obs
-            obs, done = advance(action, decision)
+            gate = data['stop_gate']
+            if face_on_stop and action=='stop' and not gate['ready']:
+                raise ValueError('FOA STOP requires accepted arrival evidence')
+            point = gate.get('inferred_source_world_xyz') if face_on_stop and action=='stop' and gate['ready'] else None
+            yaw = horizontal_yaw_deg(previous['pose'],point) if point is not None else None
+            if yaw is not None and abs(yaw)>1.:
+                obs, done = advance(action, decision, stop_yaw_deg=yaw)
+                residual = horizontal_yaw_deg(obs['pose'],point)
+                if (obs['step']!=previous['step']+1 or not math.isclose(obs['timestamp_s']-previous['timestamp_s'],dt_s)
+                        or math.dist(obs['pose']['position'],previous['pose']['position'])>1e-7
+                        or residual is None or abs(residual)>1.):
+                    raise RuntimeError('Terminal turn did not align the robot in place')
+                executed=1
+                stop_facing=dict(terminal_facing=dict(yaw_deg=yaw,residual_deg=residual,
+                    status='aligned',evidence_id=gate['evidence_id']))
+            else:
+                obs, done = advance(action, decision)
+                if action=='stop':
+                    assert_frozen(previous, obs)
+                    if face_on_stop:
+                        status='already_aligned' if yaw is not None else 'direction_unavailable'
+                        stop_facing=dict(terminal_facing=dict(yaw_deg=0.,residual_deg=yaw,status=status))
             if action == 'stop':
-                assert_frozen(previous, obs)
                 if not done: raise RuntimeError('STOP did not terminate')
                 reason = 'stop'
                 break
@@ -158,7 +191,7 @@ def run_synchronous(initial, *, prepare, decide, advance, read_current,
         log_event(dict(event='segment_finished', cycle=cycle, decision_anchor=before,
                        final_state=observation_state(obs), native_steps=executed,
                        advanced_sim_time_s=executed*dt_s, reason=reason, done=done,
-                       decision_sha256=digest, wall_time_s=time.time()))
+                       decision_sha256=digest, wall_time_s=time.time(), **stop_facing))
         cycle += 1
         if done: break
     return obs, cycle

@@ -36,7 +36,7 @@ def main():
                     o,done=env.listen_step(req.get('decision'));response={'observation':public(o),'done':done}
                     if FINALIZE_ROLLOUT and env.index==len(distances):distances.append(env._distance())
                 elif cmd in ('step','stop'):
-                    o,done=env.step('stop' if cmd=='stop' else req['action'],req.get('decision'));response={'observation':public(o),'done':done}
+                    o,done=env.step('stop' if cmd=='stop' else req['action'],req.get('decision'),stop_yaw_deg=req.get('stop_yaw_deg'));response={'observation':public(o),'done':done}
                     if FINALIZE_ROLLOUT and env.index==len(distances):distances.append(env._distance())
                 elif cmd=='close':
                     try:

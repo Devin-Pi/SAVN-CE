@@ -43,12 +43,13 @@ def run_segmented(primary,foa,*,sim,shadow,extract,tool,backend,history,observed
         result=tool.analyze([obs['observation_id']]);append(out/'predictions.jsonl',dict(at=obs['observation_id'],**result))
         append(out/'shadow.jsonl',dict(at=obs['observation_id'],decision_already_committed_sha256=digest,**compact(result)))
         assert digest==hashlib.sha256(json.dumps(decision,sort_keys=True).encode()).hexdigest()
-    def advance(action,decision):
+    def advance(action,decision,*,stop_yaw_deg=None):
         nonlocal foa
         summary=latest['data']['summary']
-        reply=sim(dict(command='step',action=action,decision=decision))
+        terminal={} if stop_yaw_deg is None else {'stop_yaw_deg':stop_yaw_deg}
+        reply=sim(dict(command='step',action=action,decision=decision,**terminal))
         digest=hashlib.sha256(json.dumps(decision,sort_keys=True).encode()).hexdigest()
-        mirror=shadow(dict(command='step',action=action,decision={'source':'primary_action_mirror','primary_decision_sha256':digest}))
+        mirror=shadow(dict(command='step',action=action,decision={'source':'primary_action_mirror','primary_decision_sha256':digest},**terminal))
         foa=mirror['observation'];obs=reply['observation'];assert reply['done']==mirror['done'];assert_pose(obs,foa)
         history.append({k:summary[k] for k in ('observation_id','step','sim_time_s','xz_m','forward_xz','collided','forward_blocked','audio','depth')}|{'action':action})
         print(json.dumps(dict(observation=summary['observation_id'],action=action,step=obs['step'],done=reply['done'])),flush=True)
@@ -93,7 +94,7 @@ def run_segmented(primary,foa,*,sim,shadow,extract,tool,backend,history,observed
             result_data['summary']['stop_verification']=policy_evidence(gate)
         return result_data
     primary,cycles=run_synchronous(primary,prepare=prepare,decide=decide,advance=advance,
-        read_current=read_current,before_action=before_action,
+        read_current=read_current,before_action=before_action,face_on_stop=arrival is not None,
         log_event=lambda row:append(out/'decision_cycles.jsonl',row),max_steps=max_steps,
         listen_advance=listen_advance if listen_s else None,after_listen=after_listen if listen_s else None,
         log_listening=(lambda row:append(out/'listening_cycles.jsonl',row)) if listen_s else None)
@@ -130,7 +131,7 @@ def main():
         localization_profile=a.profile,localization_update_period_s=None if a.listen_before_decide_s else (.25 if a.profile=='avn_foa_short1s' else 1),resolution=512,
         decision_period_s=a.decision_period_s,listen_before_decide_s=a.listen_before_decide_s,sound_schedule=a.sound_schedule,control_mode='stationary_listen_v1' if a.listen_before_decide_s else ('synchronous_segments_v1' if a.decision_period_s==1 else 'per_native_step'),
         step_budget_unit='native .25s steps',foa_audio_threads=a.foa_audio_threads,stop_rule=a.stop_rule,foa_tolerance_deg=a.foa_tolerance_deg,
-        max_stop_confirmation_retries=int(a.stop_rule=='foa_geometry'),localization_used_for_stop=uses_foa,localization_used_for_motion_direction=False,
+        max_stop_confirmation_retries=int(a.stop_rule=='foa_geometry'),localization_used_for_stop=uses_foa,localization_used_for_motion_direction=False,terminal_foa_facing=uses_foa,
         segment_guards='sensor-only; no target truth'),indent=2)+'\n')
     backend=CodexBackend(a.inputs,out/'codex_calls.jsonl');history=deque(maxlen=8);observed=set()
     simcmd=['docker','exec','-i','-e','HABITAT_SIM_LOG=quiet','-e','MAGNUM_LOG=quiet','-w',a.sim_workdir,'savnce_dev','python','-m']
@@ -177,6 +178,6 @@ def main():
             sim({'command':'close'});shadow({'command':'close'})
     actions=[json.loads(line) for line in (out/'navigation/actions.jsonl').read_text().splitlines()]
     listen_count=sum(row['action']=='listen' for row in actions)
-    (out/'rollout_complete.json').write_text(json.dumps(dict(status='completed',movement_steps=primary['step']-listen_count,listening_steps=listen_count,total_native_steps=primary['step'],shadow_used_for_navigation=a.stop_rule!='legacy',localization_used_for_stop=uses_foa,localization_used_for_motion_direction=False,pose_lockstep_verified=True,policy_model='gpt-6.1-sol',decision_cycles=cycles,decision_period_s=a.decision_period_s),indent=2)+'\n')
+    (out/'rollout_complete.json').write_text(json.dumps(dict(status='completed',movement_steps=primary['step']-listen_count,listening_steps=listen_count,total_native_steps=primary['step'],shadow_used_for_navigation=a.stop_rule!='legacy',localization_used_for_stop=uses_foa,localization_used_for_motion_direction=False,terminal_foa_facing=uses_foa,pose_lockstep_verified=True,policy_model='gpt-6.1-sol',decision_cycles=cycles,decision_period_s=a.decision_period_s),indent=2)+'\n')
 
 if __name__=='__main__':main()

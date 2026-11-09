@@ -1,6 +1,6 @@
 """Step-level official SAVN-CE environment; privileged truth is not in observations."""
 from pathlib import Path
-import copy,gzip,json,runpy,hashlib
+import copy,gzip,json,runpy,hashlib,math
 import numpy as np
 import soundfile as sf
 import imageio.v2 as imageio
@@ -110,18 +110,42 @@ class OfficialEpisodeEnv:
         with (self.output/'observations.jsonl').open('a') as f:f.write(json.dumps(row)+'\n')
         self._cached=public;return public
 
-    def step(self,action,decision=None):
+    def step(self,action,decision=None,*,stop_yaw_deg=None):
         if self.done:raise RuntimeError('Episode finished; create/reset another environment')
         if isinstance(action,str):action={v:k for k,v in ACTIONS.items()}[action]
         action=int(action)
         if action not in ACTIONS:raise ValueError('Invalid action')
+        native_action=action
+        if stop_yaw_deg is not None:
+            if (action!=0 or type(stop_yaw_deg) not in (int,float)
+                    or not math.isfinite(stop_yaw_deg) or not 0<abs(stop_yaw_deg)<=180):
+                raise ValueError('Terminal yaw requires STOP and a nonzero angle in [-180, 180]')
+            native_action='savnce_terminal_yaw'
         old=self.observe();before=np.array(old['pose']['position'])
-        if action==0:
-            self.done=True;new=old
-        else:
-            self._native=self.sim.step(action);self.index+=1;self._last_collision=bool(self.sim._prev_sim_obs.get('collided',False));self._last_blocked=bool(action==1 and np.linalg.norm(self.sim.get_agent_state().position-before)<.02);self._cached=None;new=self.observe();self.done=self.index>=self.max_steps
+        new=old
+        if native_action:
+            if stop_yaw_deg is not None:
+                import habitat_sim
+                space=self.sim._sim.get_agent(0).agent_config.action_space
+                turn='turn_left' if stop_yaw_deg>0 else 'turn_right'
+                space[native_action]=habitat_sim.ActionSpec(turn,habitat_sim.ActuationSpec(amount=abs(stop_yaw_deg)))
+                try:
+                    self._native=self.sim.step(native_action)
+                finally:
+                    del space[native_action]
+            else:
+                self._native=self.sim.step(native_action)
+            self.index+=1
+            self._last_collision=bool(self.sim._prev_sim_obs.get('collided',False))
+            self._last_blocked=bool(action==1 and np.linalg.norm(self.sim.get_agent_state().position-before)<.02)
+            self._cached=None
+            new=self.observe()
+            if stop_yaw_deg is not None and math.dist(old['pose']['position'],new['pose']['position'])>1e-7:
+                raise RuntimeError('Terminal yaw changed the robot position')
+        self.done=action==0 or self.index>=self.max_steps
         row={'transition_id':f'transition_{len(self._actions):04d}' if hasattr(self,'_actions') else 'transition_0000','observation_before':old['observation_id'],'action_id':action,'action':ACTIONS[action],'observation_after':new['observation_id'],'pose_before':old['pose'],'pose_after':new['pose'],'translation_m':float(np.linalg.norm(np.array(new['pose']['position'])-before)),'collision':self._last_collision,'forward_blocked':bool(self._last_blocked),'done':self.done,'decision':decision}
         if not hasattr(self,'_actions'):self._actions=[]
+        if stop_yaw_deg is not None:row['terminal_yaw_deg']=stop_yaw_deg
         self._actions.append(row)
         with (self.output/'actions.jsonl').open('a') as f:f.write(json.dumps(row)+'\n')
         return new,self.done

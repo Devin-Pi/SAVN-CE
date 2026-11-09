@@ -23,6 +23,7 @@ def main():
     nav=rows(run/'navigation/actions.jsonl');mirror=rows(run/'foa_shadow/actions.jsonl')
     assert len(nav)==len(mirror)>0
     for x,y in zip(nav,mirror):
+        assert x.get('terminal_yaw_deg')==y.get('terminal_yaw_deg')
         for key in ('action','observation_before','observation_after','done'):assert x[key]==y[key],key
         for key in ('pose_before','pose_after'):
             assert math.dist(x[key]['position'],y[key]['position'])<1e-5
@@ -82,6 +83,15 @@ def main():
             assert block[-1]['observation_after']==finished['final_state']['observation_id']
             assert block[0]['pose_before']==started['state']['pose']
             assert block[-1]['pose_after']==finished['final_state']['pose']
+            facing=finished.get('terminal_facing')
+            if facing is not None:
+                assert config.get('terminal_foa_facing') and decision['action']=='stop' and finished['done']
+                assert math.dist(block[0]['pose_before']['position'],block[0]['pose_after']['position'])<=1e-7
+                if facing['status']=='aligned':
+                    assert count==1 and block[0]['terminal_yaw_deg']==facing['yaw_deg']
+                    assert abs(facing['residual_deg'])<=1.
+                else:
+                    assert count==0 and 'terminal_yaw_deg' not in block[0]
             offset+=len(block);durations.append(count*.25);reasons[finished['reason']]+=1
         assert offset==len(controlled)
         assert len(rows(run/'model_observations.jsonl'))==len(accepted)
@@ -91,7 +101,7 @@ def main():
             cycle_summary.update(mode=mode,nominal_decision_period_s=None,listening_window_s=1,
                 complete_stationary_windows=len(listening_windows),stop_confirmation_windows=len(confirmation_windows),fixed_pose_for_all_windows=True,
                 stop_confirmation_retry_windows=len(retry_windows),
-                listening_steps=sum(x['action']=='listen' for x in nav),movement_steps=sum(x['action'] not in ('listen','stop') for x in nav))
+                listening_steps=sum(x['action']=='listen' for x in nav),movement_steps=sum(x['action'] not in ('listen','stop') or 'terminal_yaw_deg' in x for x in nav))
     else:assert accepted==[x['decision'] for x in nav]
     calls=rows(run/'codex_calls.jsonl');assert all(c['model']=='gpt-6.1-sol' and not c['shadow_visible'] for c in calls)
     if foa_stop:assert all(c.get('foa_stop_evidence_visible') for c in calls)

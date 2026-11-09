@@ -18,7 +18,7 @@ def export_rollout(env, distances):
     result['min_geodesic_distance_m'] = min(finite, default=None)
     first_entry = next((index for index, distance in enumerate(distances) if distance < 1), None)
     result['first_within_1m_step'] = first_entry
-    result['movement_steps_after_first_entry'] = sum(x['action'] not in ('listen','stop') for x in env._actions[first_entry:]) if first_entry is not None else None
+    result['movement_steps_after_first_entry'] = sum(x['action'] not in ('listen','stop') or 'terminal_yaw_deg' in x for x in env._actions[first_entry:]) if first_entry is not None else None
     for key in ('initial_distance_m', 'final_distance_m', 'stop_distance_m'):
         if result[key] is not None and not np.isfinite(result[key]):
             result[key] = None

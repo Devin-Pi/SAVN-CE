@@ -1,6 +1,7 @@
 """Executable scheduling semantics, without Habitat or external API access."""
 import copy
 import json
+import math
 from pathlib import Path
 import sys
 import tempfile
@@ -80,6 +81,32 @@ class SynchronousTests(unittest.TestCase):
         self.assertEqual((obs['step'],cycles,len(h.steps)),(0,1,1))
         self.assertEqual(h.events[-1]['reason'],'stop')
         self.assertEqual(h.events[-1]['native_steps'],0)
+    def test_confirmed_stop_can_face_source_using_the_last_native_step(self):
+        h=Harness(budget=1,action='stop')
+        def prepare(obs):
+            data=h.prepare(obs)
+            data['stop_gate']=dict(ready=True,evidence_id='confirmed',inferred_source_world_xyz=[0,1,1])
+            return data
+        def advance(action,decision,*,stop_yaw_deg):
+            self.assertEqual(action,'stop')
+            self.assertAlmostEqual(abs(stop_yaw_deg),180.)
+            angle=math.radians(stop_yaw_deg)/2
+            final=observation(1)
+            final['pose']=dict(position=[0,0,0],rotation_xyzw=[0,math.sin(angle),0,math.cos(angle)])
+            return final,True
+        final,cycles=h.run(face_on_stop=True,prepare=prepare,advance=advance)
+        self.assertEqual((final['step'],cycles),(1,1))
+        record=h.events[-1]
+        self.assertEqual(record['reason'],'stop')
+        self.assertEqual(record['terminal_facing']['status'],'aligned')
+        self.assertAlmostEqual(record['terminal_facing']['residual_deg'],0.)
+
+    def test_unconfirmed_foa_stop_cannot_rotate_or_stop(self):
+        h=Harness(action='stop')
+        with self.assertRaisesRegex(ValueError,'accepted arrival'):
+            h.run(face_on_stop=True)
+        self.assertEqual(h.steps,[])
+
     def test_motion_during_model_request_fails_closed(self):
         h=Harness()
         def decide(data):
