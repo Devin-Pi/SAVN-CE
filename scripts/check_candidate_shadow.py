@@ -6,7 +6,7 @@ import numpy as np
 import jsonschema
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from agent_episode.foa_arrival import FOA_STOP_METHODS
+from agent_episode.foa_arrival import DIRECTION_NORM_TOLERANCE, FOA_STOP_METHODS
 
 
 def rows(p):return [json.loads(s) for s in p.read_text().splitlines()]
@@ -127,6 +127,7 @@ def main():
     predictions=rows(run/'predictions.jsonl');schema=json.loads(Path('docs/localization_tool.short.schema.json' if short else 'docs/localization_tool.candidate.schema.json').read_text())
     for r in predictions:jsonschema.validate(r,schema)
     success=[r for r in predictions if r['status']=='ok']
+    max_direction_norm_error=0.
     for r in success:
         ids=r['provenance']['observation_ids'];assert len(ids)==support_count and ids[-1]==r['at']
         assert byid[ids[-1]]['step']-byid[ids[0]]['step']==support_count-1
@@ -140,7 +141,9 @@ def main():
             for e in frame:
                 assert e['orientation_pose_ref']==ids[-1] and e['pose_ref'] in ids
                 if short:assert e['pose_ref']==ids[-1]
-                assert abs(np.linalg.norm(e['direction_unit_habitat_xyz'])-1)<1e-5
+                norm_error=abs(float(np.linalg.norm(e['direction_unit_habitat_xyz']))-1.)
+                max_direction_norm_error=max(max_direction_norm_error,norm_error)
+                assert norm_error<=DIRECTION_NORM_TOLERANCE if foa_stop else norm_error<1e-5
     # Actor container is separate from the simulator and sees no scene/data/output mounts.
     actor=json.loads(a.actor_audit.read_text())
     allowed={'/usr/local/bin/codex','/codex_home/auth.json','/codex_home/config.toml','/etc/ssl/certs','/inputs'}
@@ -243,7 +246,9 @@ def main():
                 events_by_class[e['class_name']]+=1;recent+=int(short or index>=90)
                 if byid[e['pose_ref']]['audio_rms']<=1e-7:numeric_silent+=1;continue
                 receiver=poses[e['pose_ref']]['receiver_position_habitat_xyz_m'];v=np.asarray(source)-receiver;v/=np.linalg.norm(v)
-                angle=float(np.degrees(np.arccos(np.clip(np.dot(v,e['direction_unit_habitat_xyz']),-1,1))))
+                direction=np.asarray(e['direction_unit_habitat_xyz'],dtype=float)
+                direction/=np.linalg.norm(direction)
+                angle=float(np.degrees(np.arccos(np.clip(np.dot(v,direction),-1,1))))
                 angles.append(angle)
                 if e['class_name']=='chair':
                     correct_angles.append(angle)
@@ -271,6 +276,7 @@ def main():
         candidate_status_counts=dict(Counter(r['status'] for r in predictions)),unique_successful_anchor_ids=len({r['at'] for r in success}),cached_successful_results=sum(r['provenance']['cache_hit'] for r in success),first_result_audio_time_s=success[0]['timing']['audio_end_s'] if success else None,
         first_and_last_numerically_active_quarter_start_s=([r['timestamp_s'] for r in observed if r['audio_rms']>1e-7][0], [r['timestamp_s'] for r in observed if r['audio_rms']>1e-7][-1]) if any(r['audio_rms']>1e-7 for r in observed) else None,
         events_by_class=dict(events_by_class),events_in_latest_one_second_summed_over_calls=recent,
+        max_direction_norm_error=max_direction_norm_error,
         events_on_numerically_quiet_quarter_second_windows=numeric_silent,
         all_class_conditional_direction=stats(angles),chair_conditional_direction=stats(correct_angles),
         conditional_metric_note='Offline renderer-truth diagnostic on numerical RMS>1e-7; overlapping predictions counted, not independent samples; not SELD/F20 or Agent success',

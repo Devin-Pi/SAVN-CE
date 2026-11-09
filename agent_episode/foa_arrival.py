@@ -8,6 +8,7 @@ import math
 
 FOA_STOP_METHODS = {'foa_multiview': 'foa-signed-rays-v1', 'foa_geometry': 'foa-signed-rays-v2'}
 DEFAULT_FOA_TOLERANCE_DEG = {'foa_multiview': 15., 'foa_geometry': 2.}
+DIRECTION_NORM_TOLERANCE = 1e-3
 
 
 class FoaArrival:
@@ -115,7 +116,7 @@ class FoaArrival:
         event=frames[0][0]
         if event.get('pose_ref')!=anchor or event.get('orientation_pose_ref')!=anchor:return unknown('Current ray uses an old pose')
         direction=np.asarray(event.get('direction_unit_habitat_xyz'),float)
-        if direction.shape!=(3,) or not np.isfinite(direction).all() or abs(np.linalg.norm(direction)-1)>1e-3:return unknown('Invalid signed world direction')
+        if direction.shape!=(3,) or not np.isfinite(direction).all() or abs(np.linalg.norm(direction)-1)>DIRECTION_NORM_TOLERANCE:return unknown('Invalid signed world direction')
         direction/=np.linalg.norm(direction)
         self.used.update(ids)
         label=event['class_name']
