@@ -139,7 +139,7 @@ def write_agent_launcher(output, selected, seed):
     lines = ['#!/usr/bin/env bash', 'set -euo pipefail',
              ': "${SIM_WORKDIR:?Set the project worktree path inside savnce_dev}"',
              ': "${ACTOR_INPUTS:?Set the host path to the isolated Codex Actor inputs}"',
-             ': "${RUN_ROOT:?Set a fresh relative output root}"', 'steps=${STEPS:-128}']
+             ': "${RUN_ROOT:?Set a fresh relative output root}"', 'steps=${STEPS:-500}']
     for entry, _ in selected:
         command = shlex.join(['python3', '-u', 'scripts/candidate_codex_shadow.py',
             '--episode-id', entry['episode_id'], '--episode-file', entry['episode_file'],
