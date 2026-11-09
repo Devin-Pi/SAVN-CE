@@ -15,10 +15,15 @@ ACTIONS={0:'stop',1:'move_forward',2:'turn_left',3:'turn_right'}
 DEFAULT_EPISODES='audit/official_samples/savnce_dataset/mp3d/v1/train/content/17DRP5sb8fy.json.gz'
 
 class OfficialEpisodeEnv:
-    def __init__(self,output,episode_id='410',resolution=256,max_steps=64,seed=7,episodes_path=DEFAULT_EPISODES,private_output=None,*,audio_mode='binaural',sound_schedule='episode'):
+    def __init__(self,output,episode_id='410',resolution=256,max_steps=64,seed=7,episodes_path=DEFAULT_EPISODES,private_output=None,*,audio_mode='binaural',sound_schedule='episode',audio_threads=None):
         if audio_mode not in ('binaural', 'foa'):
             raise ValueError("audio_mode must be 'binaural' or 'foa'")
         self.audio_mode = audio_mode
+        if audio_threads is None:
+            audio_threads = 1 if audio_mode == 'foa' else 4
+        if type(audio_threads) is not int or audio_threads < 1:
+            raise ValueError('audio_threads must be a positive integer')
+        self.audio_threads = audio_threads
         if sound_schedule not in ('episode','sustained'):raise ValueError('Unknown sound schedule')
         self.sound_schedule=sound_schedule
         self.audio_key = 'foa_audio' if audio_mode == 'foa' else 'binaural_audio'
@@ -43,7 +48,7 @@ class OfficialEpisodeEnv:
         self._episode=next(e for e in dataset.episodes if str(e.episode_id)==self.episode_id)
         c=cfg.SIMULATOR;c.TYPE='SAVNCE_Simulator';c.AGENT_0.SENSORS=['RGB_SENSOR','DEPTH_SENSOR']
         c.RGB_SENSOR.WIDTH=c.RGB_SENSOR.HEIGHT=self.resolution;c.DEPTH_SENSOR.WIDTH=c.DEPTH_SENSOR.HEIGHT=self.resolution
-        c.AUDIO.MIC_TYPE='ambisonics' if self.audio_mode == 'foa' else 'binaural';c.AUDIO.THREADS=4;c.AUDIO.EVERLASTING=False;c.AUDIO.HAS_DISTRACTOR_SOUND=False;c.AUDIO.HAS_NOISE_SOUND=False
+        c.AUDIO.MIC_TYPE='ambisonics' if self.audio_mode == 'foa' else 'binaural';c.AUDIO.THREADS=self.audio_threads;c.AUDIO.EVERLASTING=False;c.AUDIO.HAS_DISTRACTOR_SOUND=False;c.AUDIO.HAS_NOISE_SOUND=False
         c.AUDIO.SOURCE_SOUND_DIR=str(Path('data/sounds/semantic_splits').resolve())
         assert (Path(c.AUDIO.SOURCE_SOUND_DIR)/self._episode.goals[0].sound_id).is_file()
         merge_sim_episode_config(c,self._episode)
@@ -55,7 +60,7 @@ class OfficialEpisodeEnv:
         self.sim=SAVNCE_Simulator(c);self.sim.seed(self.seed);self.sim.reconfigure(c);self._native=self.sim.reset()
         self.dt=c.STEP_TIME;self.sr=c.AUDIO.RIR_SAMPLING_RATE
         if self.audio_mode == 'foa':
-            self.audio_format = audio_format(self.sr, self.dt)
+            self.audio_format = dict(audio_format(self.sr, self.dt), rendering_threads=self.audio_threads)
             (self.output/'audio_format.json').write_text(json.dumps(self.audio_format, indent=2)+'\n')
         self.initial_distance=self._distance()
         raw=json.loads(gzip.open(self._episode_path,'rt').read())
