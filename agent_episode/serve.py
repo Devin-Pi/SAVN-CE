@@ -28,7 +28,7 @@ def main():
                 cmd=req['command']
                 if cmd=='reset':
                     if env:env.close()
-                    env=OfficialEpisodeEnv(req['output'],req.get('episode_id','410'),req.get('resolution',256),req.get('max_steps',64),req.get('seed',7),episodes_path=req.get('episode_file',DEFAULT_EPISODES),audio_mode=req.get('audio_mode','binaural'),sound_schedule=req.get('sound_schedule','episode'),audio_threads=req.get('audio_threads'),source_placement=req.get('source_placement','episode'));response={'observation':public(env.reset()),'actions':['move_forward','turn_left','turn_right','stop']}
+                    env=OfficialEpisodeEnv(req['output'],req.get('episode_id','410'),req.get('resolution',256),req.get('max_steps',64),req.get('seed',7),episodes_path=req.get('episode_file',DEFAULT_EPISODES),audio_mode=req.get('audio_mode','binaural'),sound_schedule=req.get('sound_schedule','episode'),audio_threads=req.get('audio_threads'),source_placement=req.get('source_placement','episode'),navigation_goal=req.get('navigation_goal'));response={'observation':public(env.reset()),'actions':['move_forward','turn_left','turn_right','stop']}
                     if FINALIZE_ROLLOUT:distances=[env.initial_distance]
                 elif cmd=='observe':response={'observation':public(env.observe())}
                 elif cmd=='state':response={'state':env.current_state()}

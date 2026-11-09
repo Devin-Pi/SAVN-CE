@@ -113,11 +113,15 @@ def main():
     p.add_argument('--stop-rule',choices=('legacy',*FOA_STOP_METHODS),default='legacy')
     p.add_argument('--source-placement',choices=('episode','object_center'),default='episode',
                    help='Use the episode source or place it 1.5 m above the semantic object center')
+    p.add_argument('--navigation-goal',nargs=3,type=float,metavar=('X','Y','Z'),
+                   help='Evaluator navigation goal on the local NavMesh in Habitat XYZ')
     p.add_argument('--binaural-audio-threads',type=int,choices=(1,4),default=4)
     p.add_argument('--foa-audio-threads',type=int,choices=(1,4),default=1,help='Number of FOA acoustic rendering threads')
     p.add_argument('--foa-tolerance-deg',type=float,help='Default is 15 degrees for foa_multiview or 5 for foa_geometry')
     p.add_argument('--profile',choices=('avn_foa_candidate','avn_foa_short1s'),default='avn_foa_candidate');a=p.parse_args()
     if a.steps<=0:p.error('steps must be positive')
+    if a.navigation_goal is not None and (a.source_placement!='object_center' or not all(map(math.isfinite,a.navigation_goal))):
+        p.error('Navigation goal override requires object_center and finite Habitat XYZ')
     uses_foa=a.stop_rule in FOA_STOP_METHODS
     if a.foa_tolerance_deg is None and uses_foa:a.foa_tolerance_deg=DEFAULT_FOA_TOLERANCE_DEG[a.stop_rule]
     if a.foa_tolerance_deg is not None and (not uses_foa or not 0.<a.foa_tolerance_deg<=45.):p.error('FOA tolerance requires a FOA rule and an angle in (0, 45] degrees')
@@ -134,7 +138,7 @@ def main():
         localization_profile=a.profile,localization_update_period_s=None if a.listen_before_decide_s else (.25 if a.profile=='avn_foa_short1s' else 1),resolution=512,
         decision_period_s=a.decision_period_s,listen_before_decide_s=a.listen_before_decide_s,sound_schedule=a.sound_schedule,control_mode='stationary_listen_v1' if a.listen_before_decide_s else ('synchronous_segments_v1' if a.decision_period_s==1 else 'per_native_step'),
         step_budget_unit='native .25s steps',foa_audio_threads=a.foa_audio_threads,binaural_audio_threads=a.binaural_audio_threads,
-        source_placement=a.source_placement,stop_rule=a.stop_rule,foa_tolerance_deg=a.foa_tolerance_deg,
+        source_placement=a.source_placement,navigation_goal=a.navigation_goal,stop_rule=a.stop_rule,foa_tolerance_deg=a.foa_tolerance_deg,
         max_stop_confirmation_retries=int(a.stop_rule=='foa_geometry'),localization_used_for_stop=uses_foa,localization_used_for_motion_direction=False,terminal_foa_facing=uses_foa,
         segment_guards='sensor-only; no target truth'),indent=2)+'\n')
     backend=CodexBackend(a.inputs,out/'codex_calls.jsonl');history=deque(maxlen=8);observed=set()
@@ -146,7 +150,7 @@ def main():
         desc=tool.describe();(out/'model.json').write_text(json.dumps(desc,indent=2)+'\n');assert desc['status']=='ok'
         sim=stack.enter_context(jsonl_process(simcmd+['agent_episode.serve','--inline-observations','--finalize-rollout'],out/'primary_simulator.log'))
         shadow=stack.enter_context(jsonl_process(simcmd+['agent_episode.serve','--inline-observations','--finalize-rollout'],out/'shadow_simulator.log'))
-        reset=dict(command='reset',episode_id=a.episode_id,episode_file=EPISODES,resolution=512,seed=a.seed,max_steps=a.steps,sound_schedule=a.sound_schedule,source_placement=a.source_placement)
+        reset=dict(command='reset',episode_id=a.episode_id,episode_file=EPISODES,resolution=512,seed=a.seed,max_steps=a.steps,sound_schedule=a.sound_schedule,source_placement=a.source_placement,navigation_goal=a.navigation_goal)
         primary=sim(dict(reset,output=str(out/'navigation'),audio_mode='binaural',audio_threads=a.binaural_audio_threads))['observation']
         foa=shadow(dict(reset,output=str(out/'foa_shadow'),audio_mode='foa',audio_threads=a.foa_audio_threads))['observation']
         done=False
