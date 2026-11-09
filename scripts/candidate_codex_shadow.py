@@ -107,6 +107,7 @@ def run_segmented(primary,foa,*,sim,shadow,extract,tool,backend,history,observed
 def main():
     p=argparse.ArgumentParser();p.add_argument('--output',type=Path,required=True);p.add_argument('--sim-workdir',required=True)
     p.add_argument('--inputs',type=Path,required=True);p.add_argument('--episode-id',default='1000000008');p.add_argument('--steps',type=int,default=64);p.add_argument('--seed',type=int,default=7)
+    p.add_argument('--episode-file',default=EPISODES,help='Episode .json.gz path in the simulator worktree')
     p.add_argument('--decision-period-s',type=float,choices=(.25,1.),default=.25,help='1 enables synchronous, guarded segments of up to four native steps')
     p.add_argument('--listen-before-decide-s',type=float,choices=(0.,1.),default=0.,help='Collect four fresh fixed-pose blocks before every decision; counts toward --steps')
     p.add_argument('--sound-schedule',choices=('episode','sustained'),default='episode',help='sustained preserves onset, extends runtime offset beyond the budget; original episode unchanged')
@@ -130,7 +131,7 @@ def main():
     if a.decision_period_s==1 and a.profile!='avn_foa_short1s':p.error('1s decision mode requires the 1s localization profile')
     if a.output.is_absolute():raise ValueError('Use a path relative to the mounted project worktree')
     a.output.mkdir(parents=True,exist_ok=False);out=a.output
-    (out/'run_config.json').write_text(json.dumps(dict(episode_id=a.episode_id,episode_file=EPISODES,seed=a.seed,max_steps=a.steps,
+    (out/'run_config.json').write_text(json.dumps(dict(episode_id=a.episode_id,episode_file=a.episode_file,seed=a.seed,max_steps=a.steps,
         model='gpt-6.1-sol',provider_host='code.ppchat.vip',auth_mode='api_key',policy='existing evidence policy, no yaw probe',
         policy_observations='primary RGB-D/binaural/pose; FOA multiview STOP verification' if uses_foa else 'primary RGB-D/binaural/pose; existing passive STOP gate',
         shadow='synchronized FOA env; raw output withheld; derived STOP evidence supplied' if uses_foa else 'separate FOA env, exact same executed actions, never fed to policy',
@@ -150,7 +151,7 @@ def main():
         desc=tool.describe();(out/'model.json').write_text(json.dumps(desc,indent=2)+'\n');assert desc['status']=='ok'
         sim=stack.enter_context(jsonl_process(simcmd+['agent_episode.serve','--inline-observations','--finalize-rollout'],out/'primary_simulator.log'))
         shadow=stack.enter_context(jsonl_process(simcmd+['agent_episode.serve','--inline-observations','--finalize-rollout'],out/'shadow_simulator.log'))
-        reset=dict(command='reset',episode_id=a.episode_id,episode_file=EPISODES,resolution=512,seed=a.seed,max_steps=a.steps,sound_schedule=a.sound_schedule,source_placement=a.source_placement,navigation_goal=a.navigation_goal)
+        reset=dict(command='reset',episode_id=a.episode_id,episode_file=a.episode_file,resolution=512,seed=a.seed,max_steps=a.steps,sound_schedule=a.sound_schedule,source_placement=a.source_placement,navigation_goal=a.navigation_goal)
         primary=sim(dict(reset,output=str(out/'navigation'),audio_mode='binaural',audio_threads=a.binaural_audio_threads))['observation']
         foa=shadow(dict(reset,output=str(out/'foa_shadow'),audio_mode='foa',audio_threads=a.foa_audio_threads))['observation']
         done=False
