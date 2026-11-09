@@ -1,0 +1,122 @@
+{
+  "note": "Evaluator-only after close, matched native initial/final geodesic. Never supplied to Agent or gate.",
+  "windows": [
+    {
+      "at": "obs_0004",
+      "geodesic_distance_m": 3.1130213737487793,
+      "within1m": false,
+      "ready": false,
+      "reason": "No complete active 1s FOA window",
+      "checks": {
+        "current_usable_foa": false
+      },
+      "estimated_range_interval_m": null
+    },
+    {
+      "at": "obs_0012",
+      "geodesic_distance_m": 2.2327542304992676,
+      "within1m": false,
+      "ready": false,
+      "reason": "Need three spatially distinct signed-ray observations",
+      "checks": {
+        "current_usable_foa": true,
+        "distinct_positions": false
+      },
+      "estimated_range_interval_m": null
+    },
+    {
+      "at": "obs_0020",
+      "geodesic_distance_m": 1.5112898349761963,
+      "within1m": false,
+      "ready": false,
+      "reason": "Need three spatially distinct signed-ray observations",
+      "checks": {
+        "current_usable_foa": true,
+        "distinct_positions": false
+      },
+      "estimated_range_interval_m": null
+    },
+    {
+      "at": "obs_0026",
+      "geodesic_distance_m": 1.2974590063095093,
+      "within1m": false,
+      "ready": false,
+      "reason": "Need three spatially distinct signed-ray observations",
+      "checks": {
+        "current_usable_foa": true,
+        "distinct_positions": false
+      },
+      "estimated_range_interval_m": null
+    },
+    {
+      "at": "obs_0034",
+      "geodesic_distance_m": 1.2974590063095093,
+      "within1m": false,
+      "ready": false,
+      "reason": "Need three spatially distinct signed-ray observations",
+      "checks": {
+        "current_usable_foa": true,
+        "distinct_positions": false
+      },
+      "estimated_range_interval_m": null
+    },
+    {
+      "at": "obs_0042",
+      "geodesic_distance_m": 0.40065184235572815,
+      "within1m": true,
+      "ready": false,
+      "reason": "Range remains far, uncertain, or unconfirmed",
+      "checks": {
+        "current_usable_foa": true,
+        "distinct_positions": true,
+        "moving_baseline": true,
+        "parallax": true,
+        "range_identifiable": true,
+        "point_supported_by_signed_rays": true,
+        "consistent_signed_rays": true,
+        "entire_feasible_range_near": false,
+        "point_estimate_near": true,
+        "fresh_stable_confirmation": false
+      },
+      "estimated_range_interval_m": [
+        0.09999999999999985,
+        1.3750000000000002
+      ]
+    },
+    {
+      "at": "obs_0050",
+      "geodesic_distance_m": 0.8058436512947083,
+      "within1m": true,
+      "ready": false,
+      "reason": "Need three spatially distinct signed-ray observations",
+      "checks": {
+        "current_usable_foa": true,
+        "distinct_positions": false
+      },
+      "estimated_range_interval_m": null
+    },
+    {
+      "at": "obs_0058",
+      "geodesic_distance_m": 1.7715092897415161,
+      "within1m": false,
+      "ready": false,
+      "reason": "Range remains far, uncertain, or unconfirmed",
+      "checks": {
+        "current_usable_foa": true,
+        "distinct_positions": true,
+        "moving_baseline": true,
+        "parallax": true,
+        "range_identifiable": true,
+        "point_supported_by_signed_rays": true,
+        "consistent_signed_rays": true,
+        "entire_feasible_range_near": false,
+        "point_estimate_near": false,
+        "fresh_stable_confirmation": false
+      },
+      "estimated_range_interval_m": [
+        1.5,
+        1.95
+      ]
+    }
+  ]
+}

@@ -119,9 +119,10 @@ def main():
     a.output.mkdir(parents=True,exist_ok=False);out=a.output
     (out/'run_config.json').write_text(json.dumps(dict(episode_id=a.episode_id,episode_file=EPISODES,seed=a.seed,max_steps=a.steps,
         model='gpt-6.1-sol',provider_host='code.ppchat.vip',auth_mode='api_key',policy='existing evidence policy, no yaw probe',
-        policy_observations='primary RGB-D/binaural/pose; existing passive STOP gate',shadow='separate FOA env, exact same executed actions, never fed to policy',
+        policy_observations='primary RGB-D/binaural/pose; FOA multiview STOP verification' if a.stop_rule=='foa_multiview' else 'primary RGB-D/binaural/pose; existing passive STOP gate',
+        shadow='synchronized FOA env; raw output withheld; derived STOP evidence supplied' if a.stop_rule=='foa_multiview' else 'separate FOA env, exact same executed actions, never fed to policy',
         input_rate=16000,model_window_s=1 if a.profile=='avn_foa_short1s' else 10,
-        localization_profile=a.profile,localization_update_period_s=.25 if a.profile=='avn_foa_short1s' else 1,resolution=512,
+        localization_profile=a.profile,localization_update_period_s=None if a.listen_before_decide_s else (.25 if a.profile=='avn_foa_short1s' else 1),resolution=512,
         decision_period_s=a.decision_period_s,listen_before_decide_s=a.listen_before_decide_s,sound_schedule=a.sound_schedule,control_mode='stationary_listen_v1' if a.listen_before_decide_s else ('synchronous_segments_v1' if a.decision_period_s==1 else 'per_native_step'),
         step_budget_unit='native .25s steps',stop_rule=a.stop_rule,
         localization_used_for_stop=a.stop_rule=='foa_multiview',localization_used_for_motion_direction=False,

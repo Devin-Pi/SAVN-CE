@@ -120,6 +120,17 @@ def main():
     for decision in accepted:assert all(':localization' not in e for e in decision['evidence_ids'])
     if foa_stop:
         gates=rows(run/'foa_stop_evidence.jsonl');byanchor={x['at']:x for x in gates}
+        registry=rows(run/'derived_evidence_registry.jsonl')
+        assert len(registry)==len(gates)==len(byanchor)
+        for row in registry:
+            current=row['current_audio_observation_ids'];anchor=current[-1]
+            assert len(current)==4 and all(x in byid for x in current)
+            assert row['evidence_id']==byanchor[anchor]['evidence_id'] and not row['new_physical_observation']
+            assert all(x in byanchor and byid[x]['step']<=byid[anchor]['step'] for x in row['supporting_anchor_ids'])
+        for row in rows(run/'model_observations.jsonl'):
+            supplied=row['stop_verification'];gate=byanchor[row['observation_id']]
+            allowed={'method','evidence_id','ready','reason','checks','estimated_range_interval_m','calibration_status'}
+            assert set(supplied)<=allowed and all(gate[k]==v for k,v in supplied.items())
         for row in rows(run/'model_decisions.jsonl'):
             gate=byanchor[row['observation_id']]
             if row['status']=='accepted' and row['proposal']['action']=='stop':assert gate['ready'] and all(gate['checks'].values())
@@ -231,6 +242,11 @@ def main():
                 localization_invocation_mode='complete stationary windows only, before policy; never exposed',
                 localization_does_not_mutate_policy_input_verified=True,
                 conditional_metric_note='Fixed-pose 1s inputs, one current250ms output per completed listening phase. Same episode is not independent evidence; not SELD/F20 or Agent success.')
+            if foa_stop:
+                report.pop('localization_does_not_mutate_policy_input_verified')
+                report.update(localization_invocation_mode='complete stationary windows; derived STOP evidence exposed, raw output withheld',
+                    raw_inference_does_not_mutate_base_observation_verified=True,
+                    derived_stop_evidence_provenance_verified=True)
         if step_rows:
             with (run/'per_step_localization.csv').open('w',newline='') as f:
                 writer=csv.DictWriter(f,fieldnames=list(step_rows[0]),lineterminator='\n');writer.writeheader();writer.writerows(step_rows)

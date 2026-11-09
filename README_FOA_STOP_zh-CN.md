@@ -2,6 +2,8 @@
 
 `--stop-rule foa_multiview`只替换STOP的证据来源与审核。旧`legacy`仍为默认，原逐步、移动采音和纯shadow实验可继续复现。
 
+49项测试和64步在线验收已完成。[实际轨迹与未停原因](reports/foa_stop_20261109/README_zh-CN.md)：8轮没有满足近距证据门槛，未执行STOP，尚未证明实际停止效果改善。
+
 本模式将FOA**用于STOP**，因此不再是纯shadow。Agent看到精简的`stop_verification`（准备状态、检查项、启发式距离区间、证据ID），仍使用原RGB-D／双耳信息选择移动方向；不会获得FOA方向向量、拟合声源坐标、完整模型输出或任何目标真值。协调器不自动发STOP；只有Agent提出STOP且新门控ready才执行。旧双耳前后拟合即使认为接近，也不能代替新STOP证据。
 
 ## 证据规则

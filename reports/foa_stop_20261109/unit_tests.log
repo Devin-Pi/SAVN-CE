@@ -1,0 +1,100 @@
+["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", "-w", "/workspaces/avn_short1s_shadow_runtime_v1/repository", "avseld_final_test", "python", "-m", "unittest", "discover", "-s", "tests", "-p", "test_foa_arrival.py", "-v"]
+test_behind_camera_can_stop_without_any_depth_or_back_hypothesis (test_foa_arrival.FoaArrivalTests) ... ok
+test_cached_window_cannot_add_confirmation (test_foa_arrival.FoaArrivalTests) ... ok
+test_far_source_is_not_accepted (test_foa_arrival.FoaArrivalTests) ... ok
+test_missing_multiple_events_and_class_switch_fail_closed (test_foa_arrival.FoaArrivalTests) ... ok
+test_moving_window_and_old_pose_are_rejected (test_foa_arrival.FoaArrivalTests) ... ok
+test_new_episode_cannot_reuse_previous_arrival (test_foa_arrival.FoaArrivalTests) ... ok
+test_parallel_approach_cannot_infer_range (test_foa_arrival.FoaArrivalTests) ... ok
+test_partially_overlapping_windows_cannot_build_support (test_foa_arrival.FoaArrivalTests) ... ok
+test_same_position_turns_do_not_create_range_evidence (test_foa_arrival.FoaArrivalTests) ... ok
+test_wrong_signed_ray_is_not_mirrored_to_fit (test_foa_arrival.FoaArrivalTests) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.199s
+
+OK
+
+["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", "-w", "/workspaces/avn_short1s_shadow_runtime_v1/repository", "avseld_final_test", "python", "-m", "unittest", "discover", "-s", "tests", "-p", "test_foa_stop_protocol.py", "-v"]
+test_codex_receives_stop_evidence_and_audits_its_use (test_foa_stop_protocol.FoaStopProtocol) ... ok
+test_ready_does_not_force_agent_to_stop (test_foa_stop_protocol.FoaStopProtocol) ... ok
+test_supported_stop_does_not_require_legacy_arrival_or_depth (test_foa_stop_protocol.FoaStopProtocol) ... ok
+test_unknown_range_rejects_stop_and_requests_a_navigation_action (test_foa_stop_protocol.FoaStopProtocol) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.004s
+
+OK
+
+["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", "-w", "/workspaces/avn_short1s_shadow_runtime_v1/repository", "avseld_final_test", "python", "-m", "unittest", "discover", "-s", "tests", "-p", "test_sound_schedule.py", "-v"]
+test_invalid_inputs_are_rejected (test_sound_schedule.SoundScheduleTests) ... ok
+test_longer_official_sound_is_not_shortened (test_sound_schedule.SoundScheduleTests) ... ok
+test_official_schedule_is_unchanged_by_default (test_sound_schedule.SoundScheduleTests) ... ok
+test_sustained_preserves_onset_and_covers_final_audio_block (test_sound_schedule.SoundScheduleTests) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.000s
+
+OK
+
+["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", "-w", "/workspaces/avn_short1s_shadow_runtime_v1/repository", "avseld_final_test", "python", "-m", "unittest", "discover", "-s", "tests", "-p", "test_synchronous_control.py", "-v"]
+test_codex_prompt_explains_segment_but_old_default_is_unchanged (test_synchronous_control.SynchronousTests) ... ok
+test_collision_and_arrival_interrupt (test_synchronous_control.SynchronousTests) ... ok
+test_forward_guard_interrupts_before_next_primitive (test_synchronous_control.SynchronousTests) ... ok
+test_full_period_latest_pose_and_frozen_wait (test_synchronous_control.SynchronousTests) ... ok
+test_initial_unsafe_forward_is_rejected (test_synchronous_control.SynchronousTests) ... ok
+test_motion_during_model_request_fails_closed (test_synchronous_control.SynchronousTests) ... ok
+test_old_observation_and_api_failure_execute_nothing (test_synchronous_control.SynchronousTests) ... ok
+test_partial_final_budget (test_synchronous_control.SynchronousTests) ... ok
+test_stop_is_immediate_without_time_or_pose_advance (test_synchronous_control.SynchronousTests) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.007s
+
+OK
+
+["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", "-w", "/workspaces/avn_short1s_shadow_runtime_v1/repository", "avseld_final_test", "python", "-m", "unittest", "discover", "-s", "tests", "-p", "test_stationary_control.py", "-v"]
+test_listen_then_decide_then_move_and_repeat (test_stationary_control.StationaryTests) ... ok
+test_partial_listening_never_reaches_model_or_localizer (test_stationary_control.StationaryTests) ... ok
+test_partial_movement_budget_is_separate_from_listening (test_stationary_control.StationaryTests) ... ok
+test_pose_drift_in_listening_fails_before_policy (test_stationary_control.StationaryTests) ... ok
+test_stop_after_listening_does_not_move_or_listen_again (test_stationary_control.StationaryTests) ... ok
+test_terminal_full_window_can_be_logged_without_policy_action (test_stationary_control.StationaryTests) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.003s
+
+OK
+
+["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", "-w", "/workspaces/avn_short1s_shadow_runtime_v1/repository", "avseld_final_test", "python", "-m", "unittest", "discover", "-s", "tests", "-p", "test_*localization.py", "-v"]
+test_acquisition_anchor_and_no_future (test_candidate_localization.CandidateFrames) ... ok
+test_identity_all_axes (test_candidate_localization.CandidateFrames) ... ok
+test_invalid_pose_rejected (test_candidate_localization.CandidateFrames) ... ok
+test_native16k_only (test_candidate_localization.CandidateFrames) ... ok
+test_yaw_sign_energy_and_roundtrip (test_candidate_localization.CandidateFrames) ... ok
+test_contiguous_time_overlap_cache_and_pose (test_dsf_localization.TestLocalization) ... ok
+test_decoder_axis_activity_nan_and_duplicate_rules (test_dsf_localization.TestLocalization) ... ok
+test_format_and_references (test_dsf_localization.TestLocalization) ... ok
+test_responses_roundtrip_registration_and_tool_result (test_dsf_localization.TestLocalization) ... ok
+test_unavailable_worker (test_dsf_localization.TestLocalization) ... ok
+test_worker_rejects_bad_samples_before_inference (test_dsf_localization.TestLocalization) ... ok
+test_episode_reset_removes_history (test_short_localization.ShortTool) ... ok
+test_warmup_current_step_cache_and_no_future (test_short_localization.ShortTool) ... ok
+test_wrong_rate_and_shape_rejected (test_short_localization.ShortTool) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 0.139s
+
+OK
+
+["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", "-w", "/workspace/SAVN-CE/outputs/avn_candidate_shadow_worktree", "savnce_dev", "python", "-m", "unittest", "discover", "-s", "tests", "-p", "test_stationary_audio.py", "-v"]
+Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
+Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
+See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
+test_full_second_features_and_panel_use_all_four_blocks (test_stationary_audio.StationaryAudioTests) ... ok
+test_moving_duplicate_and_noncontiguous_blocks_rejected (test_stationary_audio.StationaryAudioTests) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.050s
+
+OK
